@@ -37,7 +37,7 @@
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "Trychange: The data are located in a directory 'altimetry'. In 'atimetry', there is another folder for each glacier. So we can get the list of glaciers this way:\n"
+    "The data are located in a directory 'altimetry'. In 'atimetry', there is another folder for each glacier. So we can get the list of glaciers this way:\n"
    ]
   },
   {
