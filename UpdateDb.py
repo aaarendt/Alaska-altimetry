@@ -9,14 +9,14 @@ import os
 import glob
 import datetime as dtm
 import sys
-import ConfigParser
+#import ConfigParser
 
 # Kilroy asks if this is needed?
-cfg = ConfigParser.ConfigParser()
-cfg.read(os.path.dirname(__file__)+'/setup.cfg')
+#cfg = ConfigParser.ConfigParser()
+#cfg.read(os.path.dirname(__file__)+'/setup.cfg')
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-from Altimetry import *
+#from Altimetry import *
 
 
 ##############################################################################################
@@ -125,7 +125,7 @@ def import_lamb_file_to_db(lambfile,db):
         #print str(GetSqlData("SELECT gid FROM glnames WHERE name = '%s'" % data['name'])['gid'][0])
         data['glid'] = str(GetSqlData("SELECT gid FROM glnames WHERE name = '%s'" % data['name'])['gid'][0])
     except:
-        print "%s not used because not in glnames." % lambfile
+        print("%s not used because not in glnames." % lambfile)
         return
 
     del data['name']
@@ -214,7 +214,7 @@ KEYWORD ARGUMENTS:
     cur.close()
     conn.close()
     
-    print 'Importing lamb output files:'
+    print('Importing lamb output files:')
     for (i,lambfile) in enumerate(lambfiles):
-        print lambfile
+        print(lambfile)
         import_lamb_file_to_db(lambfile,db)
