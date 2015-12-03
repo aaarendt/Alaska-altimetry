@@ -447,7 +447,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     
     #MAKING THE SELECT QUERY
     select = "SELECT %s %s %s %s %s;" % (distinct,",".join(fields),' '.join(tables),' AND '.join(wheres),",".join(orderby_init))
-    if verbose:print select
+    if verbose:print(select)
     s = GetSqlData(select,bycolumn=False)
     
     #IF NO DATA WAS RETURNED, END AND RETURNED NONE
@@ -1446,13 +1446,16 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
                     
     
     Returns: 
-        A dictionary of dictionaries containing partitioned mass balance results. Where glaciers are divided in the following ways:
+            A dictionary of dictionaries containing partitioned mass balance results. Where glaciers are 
+            divided in the following ways:
             A dictionary with the following keys regardless of your partitioned choices:
             
-                bysurveyed          Mass balance of glaciers divided by whether they were 'surveyed' or 'unsurveyed' for the data input.
+                bysurveyed          Mass balance of glaciers divided by whether they were 
+                                    'surveyed' or 'unsurveyed' for the data input.
                 bytype              Same but divided by terminus type
                 all                 Same but the region as a whole.
-                bytype_survey       Same but divided by terminus type and whether they were 'surveyed' or 'unsurveyed' for the data input.
+                bytype_survey       Same but divided by terminus type and whether they were
+                                    'surveyed' or 'unsurveyed' for the data input.
             
                 Within each of these groups the summed mass balance is presented in another dictionary with keys:
 
@@ -1460,50 +1463,54 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     totalkgm2   Mean mass balance in m w eq/yr  (yes it says kgm2)
     errkgm2     Mean mass balance error in m w eq/yr  (yes it says kgm2)
     totalgt     Total mass balance Gt/yr 
-    errgt       Total mass balance error Gt/yr. Note this does not include the 50% increase in error for tidewater glaciers nor the area
-                dependency correction that is discused in larsen et al.  Those should to be added manually if the user wishes.
+    errgt       Total mass balance error Gt/yr. Note this does not include the 50% 
+                increase in error for tidewater glaciers nor the area
+                dependency correction that is discused in larsen et al.  Those 
+                should to be added manually if the user wishes.
             
     If the keyword keep_postgres_tbls=True, the result table will be retained in the database and will allow
     the user to query and view this table (in a GIS) to evaluate the extrapolation further.         
       
     EXAMPLE USE WITH GetLambData AND partition_dataset:
     
-        surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,as_object=True)
+        surveyeddata = GetLambData(verbose=False,longest_interval=True,interval_max=30,
+        interval_min=5,by_column=True,as_object=True)
         surveyeddata.fix_terminus()
         surveyeddata.normalize_elevation()
         surveyeddata.calc_dz_stats()
     
         types = ["gltype=0","gltype=1","gltype=2"]
-        lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
+        lamb,userwheres,notused,whereswo,notswo = partition_dataset(types,
+        applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
         print extrapolate(user,lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False)  
     
-        Here the user is first retreiving all of the surveyed glacier data in one lambobject to be applied those glaciers individually as surveyeddata.
+        Here the user is first retreiving all of the surveyed glacier data in one 
+        lambobject to be applied those glaciers individually as surveyeddata.
     
-        Next the user is partitioning the dataset as done in larsen etal by glacier type, we excluding surgers and outlier glaciers because we don't want
-            those glaciers to affect the mean profile within the group that will be used for extrapolation.
+        Next the user is partitioning the dataset as done in larsen etal by glacier type, 
+        we excluding surgers and outlier glaciers because we don't want
+        those glaciers to affect the mean profile within the group that will be used for extrapolation.
         
-        Lastly, we run extrapolate on those groups, this applies the group extrapolation to each group but we use the where statements include exceptions 
-        like surgers. To reiterate, we ran partition_dataset on land/lake/tide w/o surgers.  But we apply those same curves to land/lake/tides but to all glaciers
-        including surgers.  Here, ther user has then inserted the surveyed data so surveyed glacier mass balance is included on an individual
-        glacier basis.  Lastly here we drop the output_table, please do this as the output table is several Gb. 
+        Lastly, we run extrapolate on those groups, this applies the group extrapolation 
+        to each group but we use the where statements include exceptions 
+        like surgers. To reiterate, we ran partition_dataset on land/lake/tide w/o surgers.
+        But we apply those same curves to land/lake/tides but to all glaciers
+        including surgers.  Here, ther user has then inserted the surveyed data so surveyed glacier mass 
+        balance is included on an individual glacier basis.  Lastly here we drop the output_table, 
+        please do this as the output table is several Gb. 
          
     ====================================================================================================        
     """
-    import __init__ as init
 
-    #INSURING STATS HAVE BEEN RUN ON GROUP FIRST
+    #ENSURING STATS HAVE BEEN RUN ON GROUP FIRST
     for grp in groups:
         if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
     
-    
     tablename = create_extrapolation_table(user='evan') 
-    #tablename = 'alt_result_evan1'   
-
   
     ######################################################
     #NOW INSERTING DATA THAT APPLIES TO THE GROUP OF GLACIERS INCLUDING UNSURVEYED GLACIERS AND ERROR FOR SURVEYED GLACIERS
     
-    #"UPDATE %s SET error = error*1.5 WHERE gltype='1' AND surveyed='f';" % resulttable)   XXXXXXXXXXXXXXXXXXXXX LOOK HERE##########################################
     buffer2 = StringIO.StringIO()
     buffer2.write("BEGIN;\n")
        
@@ -1516,7 +1523,8 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
             wheres=[]
             if sel!='':wheres.append(sel)
             
-            #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES.  SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
+            #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES.  
+            # SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
             if i != 99:
                 wheres.append("normbins={norme:.2}".format(norme=grp.norme[i]))
             else:
@@ -1529,19 +1537,15 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
             
             where = " AND ".join(wheres2)
 
-            #THE UPDATE QUERY FOR UNSURVEYED DATA ONLY
+            #THE UPDATE STATEMENT FOR UNSURVEYED DATA ONLY
+
             buffer2.write("""UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
     ({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
     WHERE {where};\n""".format(
-            mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
-            q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
-            table=tablename,norme=grp.norme[i],where=where))
-    #        if i<4: print """UPDATE {table} \nSET (mean,median,std,sem,iqr,q1,q3,perc5,perc95,surveyed,error) = 
-    #({mean},{median},{std},{sem},{iqr},{q1},{q3},{perc5},{perc95},{surveyed},{error})
-    #WHERE {where};\n""".format(
-    #        mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],iqr=grp.interquartile_rng[i],
-    #        q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
-    #        table=tablename,norme=grp.norme[i],where=where)
+            mean=grp.dzs_mean[i],median=grp.dzs_median[i],std=grp.dzs_std[i],sem=grp.dzs_sem[i],
+                    iqr=grp.interquartile_rng[i],q1=grp.quartile_1[i],q3=grp.quartile_3[i],perc5=grp.percentile_5[i],
+                    perc95=grp.percentile_95[i],surveyed="'f'",error=grp.dzs_sem[i],
+                    table=tablename,norme=grp.norme[i],where=where))
             
             #IF SURVEYED GLACIER DATA IS PROVIDED WE NEED TO INSERT THE GROUP SURVEYED GLACIER ERROR
             #THIS IS SEPARATE FROM THE UNCERTAINTY FOR INDIVIDUAL GLACIERS
@@ -1551,10 +1555,10 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
             
                 where = " AND ".join(wheres)
                 
-                #INSERTING SURVEYED UNCERTAINTY AS THAT UNCERTAINTY IS FOR THE GROUP AND NOT THE INDIVIDUAL GLACIERS THUS EASIEST TO DO HERE
-    #            if i<4:print """UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum})
-    #WHERE {where};\n\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where)
-                buffer2.write("""UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum}) WHERE {where};\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where))
+                # INSERTING SURVEYED UNCERTAINTY AS THAT UNCERTAINTY IS FOR THE GROUP AND NOT THE 
+                # INDIVIDUAL GLACIERS THUS EASIEST TO DO HERE
+                buffer2.write("""UPDATE {table} \nSET (quadsum,error) = ({quadsum},{quadsum}) 
+                WHERE {where};\n""".format(quadsum=grp.quadsum[i],table=tablename,where=where))
             
     buffer2.write("COMMIT;\n")
     buffer2.seek(0)
@@ -1571,30 +1575,28 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     #######################################################
     buffer = StringIO.StringIO()
     buffer.write("BEGIN;\n")
-
        
     #SURVEYED GLACIER DATA INTO RESULT TABLE.  HERE WE ARE INSERTING THE SURVEYED DATA FOR SPECFIC GLACIERS   
     if type(insert_surveyed_data)!=NoneType:
         for eid,ergid in enumerate(insert_surveyed_data.ergiid):
             for i in N.linspace(0,99,100):
                 
-                #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES.  SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
+                #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES. 
+                # SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
                 if i != 99:
                     where = "ergiid={ergiid} AND normbins={norme:.2}".format(ergiid=ergid, norme=insert_surveyed_data.norme[i])
                 else:
-                    where = "ergiid={ergiid} AND normbins IN (0.99,1)".format(ergiid=ergid, norme=insert_surveyed_data.norme[i])
+                    where = "ergiid={ergiid} AND normbins IN (0.99,1)".format(ergiid=ergid, 
+                                                                              norme=insert_surveyed_data.norme[i])
                     
                 
                 #THE UPDATE QUERY FOR SURVEYED DATA ONLY
                 buffer.write("""UPDATE {table} \nSET (mean,surveyed,singl_std) = 
-    ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
-                mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
-                table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i]))
-    #            if i <4:print """UPDATE {table} \nSET (mean,surveyed,singl_std) = 
-    #({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
-    #                mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum[i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
-    #                table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i])
-            
+                ({mean},{surveyed},{singl_std}) WHERE {where};\n""".format(
+                mean=insert_surveyed_data.normdz[eid][i],quadsum=insert_surveyed_data.quadsum
+                        [i],surveyed="'t'",error=insert_surveyed_data.quadsum[i],
+                        table=tablename,where=where,singl_std=insert_surveyed_data.survIQRs[eid][i]))
+ 
     buffer.write("COMMIT;\n")
     buffer.seek(0)
     
@@ -1606,22 +1608,18 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     cur.close()
     buffer=None
         
-
-
     #THE USER CAN EXPORT THE OUTPUT TABLE AS A SHAPEFILE IF REQUESTED               
     if type(export_shp) != NoneType:
         print "Exporting To Shpfile"
         sys.stdout.flush()
         os.system("%s -f %s -h localhost altimetry %s" % (init.pgsql2shppath,export_shp,tablename))
 
-
-
     print "Summing up totals" 
     sys.stdout.flush()
     start_time = time.time()
     out = {}
     #GETTING STATS TO OUTPUT
-    out['bysurveyed'] =    GetSqlData("SELECT surveyed,         SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bysurveyed'] =    GetSqlData("SELECT surveyed,SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
     out['bytype_survey'] = GetSqlData("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
     out['bytype'] =        GetSqlData("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
     out['all'] =           GetSqlData("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
