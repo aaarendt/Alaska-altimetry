@@ -48,8 +48,8 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
     Returns: 
             If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and 
             cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the 
-            defaulthost' as declared in the module's __init__.py.  The user can specify a different server
-            by updating __init__.py with the proper information and then specifying the name of the proper
+            defaulthost' as declared in settings.py.  The user can specify a different server
+            by updating settings.py with the proper information and then specifying the name of the proper
             dictionary object with the keyword server.
                    
     connection,cursor = ConnectDb(**kwargs)
@@ -188,32 +188,32 @@ def skewtest_evan(a, axis=0):
         return N.ma.masked_array(Z,mask=n<8), N.ma.masked_array(2 * distributions.norm.sf(N.abs(Z)),mask=n<8)
     else:
         return Z, 2 * distributions.norm.sf(N.abs(Z))
- 
+
+
 def GetSqlData(select,bycolumn=True):
     """====================================================================================================
-    Altimetry.Altimetry.GetSqlData
+        Altimetry.Altimetry.GetSqlData
 
-    Evan Burgess 2013-08-22
-    ====================================================================================================
-    Purpose:
-        Extract data from postgres database using sql query and return data organized by either row or column.  
-    
-    Returns: 
-        If data is returned by row (default) the requested data will be stored as a list of dictionaries where each
-        row in the output table is stored as a dictionary where the keys are the column names.  If you set aliases
-        in your sql query, the key names will follow those aliases.  If you request bycolumn, each column in the output
-        table is accessed though a dictionary where the key is the column name.  Each column of data is stored in that 
-        dictionary as a list or as a numpy array.  Special data formats are supported:
-        
-            If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
-            outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
-            dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
+        Evan Burgess 2013-08-22
+        ====================================================================================================
+        Purpose:
+            Extract data from postgres database using sql query and return data organized by either row or column.  
+
+        Returns: 
+            If data is returned by row (default) the requested data will be stored as a list of dictionaries where each row in
+            the output table is stored as a dictionary where the keys are the column names.  If you set aliases in your sql
+            query, the key names will follow those aliases.  If you request bycolumn, each column in the output table is
+            accessed though a dictionary where the key is the column name.  Each column of data is stored in that
+            dictionary as a list or as a numpy array.  Special data formats are supported:        
+
+     If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
+     outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
+     dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
                
     GetSqlData(select,bycolumn = False):   
 
     ARGUMENTS:        
-        select              Any postgresql select statement as string including ';'  This should be robust but
-                            let evan know if you hit a snag or want added functionality.
+        select              Any postgresql select statement as string including ';'  
     KEYWORD ARGUMENTS:
         bycolumn            Set to True to request that data be returned by column instead of row.
     ====================================================================================================        
@@ -226,26 +226,20 @@ def GetSqlData(select,bycolumn=True):
     data = cur.fetchall()
     if len(data)==0:return None
 
-    #print N.c_[fields,data[0]]
-
     if bycolumn:
-        data = zip(*data)
-        #print fields, len(data),len(data[0]),data[0][0]        
+        data = zip(*data)      
         dic = {}
         while fields:
             field = fields.pop(0)
             
             #IF DATA IS GEOM OR GEOG
             if re.search('geog|geom',field,re.IGNORECASE):
-                #print field, len(data),len(data[0]),data[0][0]
                 geoms = data.pop(0)
                 dic[field] = [ppygis.Geometry.read_ewkb(poly) for poly in geoms]
                 if hasattr(dic[field][0], 'polygons'):
-                    #print dir()
                     outerring = dic[field][0].polygons[0].rings.pop(0)
                     dic['outer'] = [[point.x,point.y] for point in outerring.points]
                     dic['inner'] = [[[point.x,point.y] for point in ring.points] for ring in dic[field][0].polygons[0].rings]
-                    #dic[field][0].polygons[0].rings[0].points]
                 elif hasattr(dic[field][0], 'x'):
                     dic['x'] = [item.x for item in dic[field]]
                     dic['y'] = [item.y for item in dic[field]]
@@ -262,15 +256,10 @@ def GetSqlData(select,bycolumn=True):
             
                 #IF DATA IS GEOM OR GEOG
                 if re.search('geog|geom',field,re.IGNORECASE):
-                    #print 'here'
                     dic[field] = ppygis.Geometry.read_ewkb(row[i])
-                    #if hasattr(dic[field], 'polygons'):
                     outerring = dic[field].polygons[0].rings.pop(0)
                     dic['outer'] = [[point.x,point.y] for point in outerring.points]
                     dic['inner'] = [[[point.x,point.y] for point in ring.points] for ring in dic[field].polygons[0].rings]
-                    #elif hasattr(dic[field], 'x'):
-                    #        dic['x'] = [item.x for item in dic[field]]
-                    #        dic['y'] = [item.y for item in dic[field]]
 
                 elif type(row[i]) == list or type(row[i]) == tuple:
                     dic[field] = N.array(row[i])
@@ -360,6 +349,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     ====================================================================================================        
     """
     #LIST OF FIELDS TO QUERY
+    # Kilroy says: there has to be better way to get this list of columns. Pandas?
     fields = [
     'lamb.lambid',
     'lamb.ergiid',
@@ -405,7 +395,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         else: 
             fields.append("ergi_mat_view.albersgeom as albersgeom")
 
-    #OPTION TO RETRIEVE ALTIMETRY RESULTS FOR THIS GLACIER FROM LARSEN ET AL 2013
+    #OPTION TO RETRIEVE ALTIMETRY RESULTS FOR THIS GLACIER 
     if results:
         fields.extend(["rlt.rlt_totalGt","rlt.rlt_totalkgm2","rlt.rlt_errGt","rlt.rlt_errkgm2","rlt.rlt_singlerrGt","rlt.rlt_singlerrkgm2"])
         
@@ -413,11 +403,13 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         SUM(area)/1000000. as area,
         SUM(mean*area)/1e9*%5.3f::real as rlt_totalGt,
         SUM(mean*area)/SUM(area)*%5.3f::real as rlt_totalkgm2,
-        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_errGt,
-        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
-        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
-        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as rlt_singlerrGt 
-        FROM altimetryextrapolation GROUP BY ergiid) AS rlt ON ergi_mat_view.ergiid=rlt.ergiid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
+        (((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 
+        + (%5.3f)^2)^0.5::real as rlt_errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)
+        *SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
+        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)
+        *SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
+        (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2
+        + (%5.3f)^2)^0.5::real as rlt_singlerrGt FROM altimetryextrapolation GROUP BY ergiid) AS rlt ON ergi_mat_view.ergiid=rlt.ergiid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
 
     #OPTION TO RETRIEVE ONLY THE LONGEST INTERVAL
     orderby_init = []   
@@ -449,7 +441,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     select = "SELECT %s %s %s %s %s;" % (distinct,",".join(fields),' '.join(tables),' AND '.join(wheres),",".join(orderby_init))
     if verbose:print(select)
     s = GetSqlData(select,bycolumn=False)
-    
+
     #IF NO DATA WAS RETURNED, END AND RETURNED NONE
     if type(s)==NoneType: return None
 
@@ -466,7 +458,6 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         for i,row in enumerate(s):
 
             if row['name'] == lastgl:
-                #print '  ',row['lamb.date1'],lastdate
                 if row['date1'] < lastdate:
                     deletelist.append(i)
                     if verbose:print '  ',row['name'],row['date1'],row['date2'],'-- Omitted'
@@ -1096,53 +1087,26 @@ class LambObject:
                     
             if len(bottom)>0:
                 replbottom = N.max(N.array(bottom))+1
-                #print replbottom
-                #print self.quadsum
-                #print bottom
-
-                #self.survIQRs2[bottom]=self.survIQRs2[replbottom]
                 self.quadsum[bottom]=self.quadsum[replbottom]
                 self.dzs_std[bottom]=self.dzs_std[replbottom]
-                self.dzs_sem[bottom]=self.dzs_sem[replbottom]
-                #self.dzs_mean[bottom]=self.dzs_mean[replbottom]
-                #self.dzs_madn[bottom]=self.dzs_madn[replbottom]
-                #self.dzs_median[bottom]=self.dzs_median[replbottom]
-                ##self.normalp[bottom]=self.normalp[replbottom]
-                #self.skewz[bottom]=self.skewz[replbottom]
-                #self.skewp[bottom]=self.skewp[replbottom]
-                #self.kurtz[bottom]=self.kurtz[replbottom]
-                #self.kurtp[bottom]=self.kurtp[replbottom]
-                #self.skew[bottom]=self.skew[replbottom]
-                #self.kurtosis[bottom]=self.kurtosis[replbottom]
-                #self.percentile_5[bottom]=self.percentile_5[replbottom]
-                #self.quartile_1[bottom]=self.quartile_1[replbottom]
-                #self.percentile_33[bottom]=self.percentile_33[replbottom]
-                #self.percentile_66[bottom]=self.percentile_66[replbottom]  
-                #self.quartile_3[bottom]=self.quartile_3[replbottom]
-                #self.percentile_95[bottom]=self.percentile_95[replbottom]
-                #self.interquartile_rng[bottom]=self.interquartile_rng[replbottom]
-            
+                self.dzs_sem[bottom]=self.dzs_sem[replbottom]            
             
             
         if not (self.dzs_n != 0).all():
             
             w = N.where(self.dzs_n ==0)[0]
-            #if len(w) > 5: raise "ERROR: more than 5% of glaciers unsurveyed"
             
             top = [x for x in w if x >50]
             bottom = [x for x in w if x <=50]
             
             if len(top)>0: 
                 repltop = N.min(N.array(top))-1   
-                #print top, repltop
-                #self.survIQRs2[top]=self.survIQRs2[repltop]
                 self.quadsum[top]=self.quadsum[repltop]
                 self.dzs_std[top]=self.dzs_std[repltop]
                 self.dzs_sem[top]=self.dzs_sem[repltop]
                 self.dzs_mean[top]=self.dzs_mean[repltop]
                 self.dzs_madn[top]=self.dzs_madn[repltop]
                 self.dzs_median[top]=self.dzs_median[repltop]
-                #self.normalp[top]=self.normalp[repltop]
                 self.skewz[top]=self.skewz[repltop]
                 self.skewp[top]=self.skewp[repltop]
                 self.kurtz[top]=self.kurtz[repltop]
@@ -1156,19 +1120,16 @@ class LambObject:
                 self.quartile_3[top]=self.quartile_3[repltop]
                 self.percentile_95[top]=self.percentile_95[repltop]
                 self.interquartile_rng[top]=self.interquartile_rng[repltop]
-                
-                    
+                                   
             if len(bottom)>0:
                 replbottom = N.max(N.array(bottom))+1
 
-                #self.survIQRs2[bottom]=self.survIQRs2[replbottom]
                 self.quadsum[bottom]=self.quadsum[replbottom]
                 self.dzs_std[bottom]=self.dzs_std[replbottom]
                 self.dzs_sem[bottom]=self.dzs_sem[replbottom]
                 self.dzs_mean[bottom]=self.dzs_mean[replbottom]
                 self.dzs_madn[bottom]=self.dzs_madn[replbottom]
                 self.dzs_median[bottom]=self.dzs_median[replbottom]
-                #self.normalp[bottom]=self.normalp[replbottom]
                 self.skewz[bottom]=self.skewz[replbottom]
                 self.skewp[bottom]=self.skewp[replbottom]
                 self.kurtz[bottom]=self.kurtz[replbottom]
@@ -1506,7 +1467,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     for grp in groups:
         if not hasattr(grp,'interquartile_rng'):raise "Run statistics on groups first"
     
-    tablename = create_extrapolation_table(user='evan') 
+    tablename = create_extrapolation_table(user=user) 
   
     ######################################################
     #NOW INSERTING DATA THAT APPLIES TO THE GROUP OF GLACIERS INCLUDING UNSURVEYED GLACIERS AND ERROR FOR SURVEYED GLACIERS
@@ -1842,7 +1803,7 @@ COMMENT ON COLUMN {table}.surveyed IS 'Was the glacier surveyed?';
 COMMENT ON COLUMN {table}.error IS 'This error is the SEM for unsurveyed glaciers and the quadrature sum for surveyed glaciers  (m/yr)';
 COMMENT ON COLUMN {table}.albersgeom IS 'Alaska Albers Geometry';
 COMMENT ON COLUMN {table}.singl_std IS 'Error of a single glacier (m/yr)';
-COMMENT ON COLUMN altimetryextrapolation.region IS 'Region defined by Larsen et al. 2015';
+COMMENT ON COLUMN {table}.region IS 'Region defined by Larsen et al. 2015';
 """.format(table=table,schema=schema,user=user)
     #print sql
     buffer = StringIO.StringIO()
