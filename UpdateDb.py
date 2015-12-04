@@ -9,15 +9,8 @@ import os
 import glob
 import datetime as dtm
 import sys
-#import ConfigParser
 
-# Kilroy asks if this is needed?
-#cfg = ConfigParser.ConfigParser()
-#cfg.read(os.path.dirname(__file__)+'/setup.cfg')
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
-
-#from Altimetry import *
-
 
 ##############################################################################################
 ##READ LAMB FILE
@@ -56,12 +49,8 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         massbal = N.append(massbal,massbal_add)
         numdata = N.append(numdata,numdata_add)
     
-    #print "***************\n%s" % e
-        
     e = e.astype(int)
     e += (e[2]-e[1])/2    # DEALING WITH THE FACT THAT LAMB BINNING LABLES THE BOTTOM OF THE BIN AND WE WANT THE CENTER
-    
-    #print e
     numdata = numdata.astype(int)   
     
     #GETTING GLACIER NAME FROM FILENAME
@@ -104,32 +93,17 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         dic['massbal'] = massbal
         dic['numdata'] = numdata
         dic['name'] = name 
-        return dic
-    else:
-        out = LambOut(name,date1,date2,volmodel,vol25diff,vol75diff,balmodel,bal25diff,bal75diff,e,dz,dz25,dz75,aad,masschange,massbal,numdata)
-        return out
+    return dic
+
 
 ##############################################################################################
 ##IMPORT LAMB FILE TO DATABASE
 ##############################################################################################
-def import_lamb_file_to_db(lambfile,db):
+def import_lamb_file_to_db(lambfile,tableName):
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
-    
-    #OPENING DATABASE 
-    if isinstance(db,psycopg2._psycopg.cursor):cur=db
-    else:conn,cur = ConnectDb()
-    
-    try:
-        #print 'SELECT gid FROM glnames WHERE name = %s' % data['name']
-        #print str(GetSqlData("SELECT gid FROM glnames WHERE name = '%s'" % data['name'])['gid'][0])
-        data['glid'] = str(GetSqlData("SELECT gid FROM glnames WHERE name = '%s'" % data['name'])['gid'][0])
-    except:
-        print("%s not used because not in glnames." % lambfile)
-        return
 
-    del data['name']
-    
+    del data['name'] 
     
     data['date1'] = datetime.fromtimestamp(mktime(time.strptime(data['date1'],"%Y-%m-%d %H:%M:%S")))
     data['date2'] = datetime.fromtimestamp(mktime(time.strptime(data['date2'],"%Y-%m-%d %H:%M:%S")))
@@ -155,8 +129,6 @@ def import_lamb_file_to_db(lambfile,db):
                 s = re.sub("\n","",s)
                 values = values + ', ' + s
             elif type(data[key]) == str:
-                #s = re.sub(" 00:00:00","'",data[key])
-                #print data[key]
                 if re.search('\d{4}\-\d{2}\-\d{2}',data[key]): data[key] = "'"+data[key]+"'" 
                 values = values + ', ' + data[key]
             else:values = values + ', ' + str(data[key])
@@ -168,53 +140,6 @@ def import_lamb_file_to_db(lambfile,db):
     values = re.sub('\{', "'{", values)
     values = re.sub('\}', "}'", values)
     ss = re.sub(', $', '', ss)
-    #print '----------------'                
-    #print insert
-    #print values
-    #print ss
     
-    sql = "INSERT INTO lamb ("+insert+") VALUES (" + values + ");" # Note: no quotes
-    cur.execute(sql)
-    
-    # Make the changes to the database persistent
-    conn.commit()
-    
-    # Close communication with the database only if db name is given
-    if not isinstance(db,psycopg2._psycopg.cursor):
-        cur.close()
-        conn.close()
-        
-##############################################################################################
-##restart_lamb_table
-##############################################################################################
-def RestartLambTable(globpath): 
-    """====================================================================================================
-Altimetry.UpdateDb.RestartLambTable
-Evan Burgess 2013-08-22
-====================================================================================================
-Purpose:
-    Update the lamb table by searching through the glob path listed for files with the name format *output.txt.  
-    All of these files are read into the table. The name is used to match a gid in the existing glnames table. 
-    SO IF YOU CHANGE THE GLNAMES TABLE RUN UpdateGlnamesRegions BEFORE RUNNING THIS!!
-    
-Returns: Nothing
-RestartLambTable(globpath = Altimetry.lambpath) 
-KEYWORD ARGUMENTS:
-    globpath            The full pathname used to search for lamb output files eg.  
-                        /home/laser/analysis/*/results*.output.txt
-====================================================================================================        
-        """ 
-    lambfiles = glob.glob(globpath)
-    db='altimetry'
-    conn,cur = ConnectDb()    
-    cur.execute("DROP TABLE IF EXISTS lamb")
-    cur.execute("CREATE TABLE lamb (gid serial PRIMARY KEY, glid smallint, date1 date, date2 date, interval smallint, volmodel real, vol25diff real,vol75diff real, balmodel real, bal25diff real,bal75diff real,e integer[],dz real[],dz25 real[],dz75 real[],aad real[],masschange real[],massbal real[],numdata integer[]);")
-    
-    conn.commit()
-    cur.close()
-    conn.close()
-    
-    print('Importing lamb output files:')
-    for (i,lambfile) in enumerate(lambfiles):
-        print(lambfile)
-        import_lamb_file_to_db(lambfile,db)
+    sql = "INSERT INTO " + tableName + " ("+insert+") VALUES (" + values + ");" # Note: no quotes
+    return sql        
