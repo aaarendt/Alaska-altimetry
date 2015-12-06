@@ -1,4 +1,3 @@
-import psycopg2
 import re
 import numpy as N
 from time import mktime
@@ -73,6 +72,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         masschange = masschange.astype(str)
         massbal = massbal.astype(str)
         numdata = numdata.astype(str) 
+        rgiid = str(0)
         
     if as_dict == 1:
         dic={} 
@@ -92,24 +92,20 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         dic['masschange'] = masschange
         dic['massbal'] = massbal
         dic['numdata'] = numdata
-        dic['name'] = name 
+        dic['rgiid'] = rgiid
     return dic
 
-
-##############################################################################################
-##IMPORT LAMB FILE TO DATABASE
-##############################################################################################
-def import_lamb_file_to_db(lambfile,tableName):
+def lamb_sql_generator(lambfile,rgiid,tableName):
+    
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
-
-    del data['name'] 
-    
+   
     data['date1'] = datetime.fromtimestamp(mktime(time.strptime(data['date1'],"%Y-%m-%d %H:%M:%S")))
     data['date2'] = datetime.fromtimestamp(mktime(time.strptime(data['date2'],"%Y-%m-%d %H:%M:%S")))
     data['interval'] = (data['date2'] - data['date1']).days
     data['date1'] = re.sub('T.*$','',data['date1'].isoformat())
     data['date2'] = re.sub('T.*$','',data['date2'].isoformat())
+    data['rgiid'] = str(rgiid) 
     
     #STRINGS FOR INSERT SQL STATEMENT
     insert = ''
@@ -130,6 +126,8 @@ def import_lamb_file_to_db(lambfile,tableName):
                 values = values + ', ' + s
             elif type(data[key]) == str:
                 if re.search('\d{4}\-\d{2}\-\d{2}',data[key]): data[key] = "'"+data[key]+"'" 
+                if key == 'rgiid': 
+                    data[key] = "'"+data[key]+"'" # Kilroy
                 values = values + ', ' + data[key]
             else:values = values + ', ' + str(data[key])
             
