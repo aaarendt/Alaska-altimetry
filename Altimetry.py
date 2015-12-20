@@ -34,8 +34,9 @@ def test(a):
    if a == 1:
      return "test 1"
    else:
-     return "test 2"
+     return "test some other number"
  
+
 def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbose=False):
     """====================================================================================================
     Altimetry.Altimetry.ConnectDb
