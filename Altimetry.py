@@ -75,7 +75,7 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
     if get_host == None and get_user != None and get_dbname == None: return serv['user']
     if get_host == None and get_user == None and get_dbname != None: return serv['dbname']
     
-    if verbose: print st     
+    if verbose: print(st)     
     
     if get_host==None and get_user == None and get_dbname == None:
         conn = psycopg2.connect(st)
@@ -453,7 +453,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     lastdate = dtm.date(1900,1,1)
     
     if removerepeats:
-        if verbose: print'Filtering lamb entries:'
+        if verbose: print('Filtering lamb entries:')
        
         #LOOPING THROUGH AND FINDING THE REPEATS
         for i,row in enumerate(s):
@@ -461,15 +461,15 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
             if row['name'] == lastgl:
                 if row['date1'] < lastdate:
                     deletelist.append(i)
-                    if verbose:print '  ',row['name'],row['date1'],row['date2'],'-- Omitted'
+                    if verbose:print('  ',row['name'],row['date1'],row['date2'],'-- Omitted')
                 else:
                     lastdate = row['date2']
-                    if verbose:print row['name'],row['date1'],row['date2']
+                    if verbose:print (row['name'],row['date1'],row['date2'])
                     keeplist.append(row['lambid'])
             else: 
                 lastgl = row['name']
                 lastdate = row['date2']
-                if verbose:print row['name'],row['date1'],row['date2']
+                if verbose:print (row['name'],row['date1'],row['date2'])
                 keeplist.append(row['lambid'])
         
         #DELETING THE REPEATS
@@ -485,7 +485,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         if by_column:s = LambToColumn(s)
     else:
         if not re.search("^\s*ORDER BY",orderby[0], re.IGNORECASE): orderby[0]="ORDER BY %s" % orderby[0]
-        print "NOTE: Choosing orderby lengthens the querytime of GetLambData"
+        print ("NOTE: Choosing orderby lengthens the querytime of GetLambData")
         lambids = [str(i['lambid']) for i in s]
         s = GetSqlData("SELECT %s %s WHERE lamb.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby)), bycolumn=by_column)
         
@@ -504,10 +504,10 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     if as_object:
         if type(s) == dict:
             s=LambObject(s)
-            print 'object'
+            print ('object')
         elif type(s) == list or type(s) == N.ndarray:
             s = [LambObject(row) for row in s]
-            print 'list'
+            print ('list')
        
     return s  
       
@@ -616,12 +616,7 @@ class LambObject:
         ====================================================================================================    
         """        
         if type(self.name) == list:
-        
-            #mn = N.min([N.min(x) for x in self.e])
-            #mx = N.max([N.max(x) for x in self.e])
-            
-       	    self.norme = N.arange(0,1,0.01,dtype=N.float32)
-       	
+            self.norme = N.arange(0,1,0.01,dtype=N.float32)
             self.normdz = []
             self.norm25 = []
             self.norm75 = []
@@ -907,10 +902,10 @@ class LambObject:
         self.approxlat=[]
         
         for k,gid in enumerate(self.gid):
-            print k
+            print (k)
             xpts=GetSqlData("SELECT z1,geog from xpts WHERE lambid=%s" % gid)
             
-            print 'len xpts',len(xpts['z1'])
+            print ('len xpts',len(xpts['z1']))
             
             srt = N.argsort(xpts['z1'])
             sortd = [xpts['z1'][item] for item in srt]
@@ -1246,7 +1241,7 @@ def partition_dataset(*args,**kwargs):
     if 'too_few' not in kwargs.keys(): too_few=4
     else: too_few=kwargs['too_few']
     
-    print 'too_few %s' % too_few
+    print ('too_few %s' % too_few)
 
     for items in iterproduct(*list(args)):
         userwhere =  " AND ".join(items)
@@ -1254,7 +1249,7 @@ def partition_dataset(*args,**kwargs):
         if kwargs:
             if not type(kwargs['applytoall'])==list:kwargs['applytoall']=[kwargs['applytoall']]
             userwhere2 = userwhere+" AND "+" AND ".join(kwargs['applytoall'])
-            print userwhere2
+            print (userwhere2)
             
         out = GetLambData(verbose=False,longest_interval=True,interval_max=intervalsmax,interval_min=interval_min,by_column=True,as_object=True, userwhere=userwhere2,get_hypsometry=True)
         if type(out)!=NoneType:
@@ -1281,7 +1276,7 @@ def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
     set setcolors='random' and it will make each polygon a random color instead of the same color. 
     """
     colors = ['e6d8ad','8A2BE2','A52A2A','DEB887','5F9EA0','7FFF00','D2691E','FF7F50','6495ED','FFF8DC','DC143C','00FFFF','00008B','008B8B','B8860B','A9A9A9','006400','BDB76B','8B008B','556B2F','FF8C00','9932CC','8B0000','E9967A','8FBC8F','483D8B','2F4F4F','00CED1','9400D3','FF1493','00BFFF','696969','1E90FF','B22222','FFFAF0','228B22','FF00FF','DCDCDC','F8F8FF','FFD700','DAA520','808080']        
-    print len(colors)
+    print (len(colors))
     c = 0
     #START KML FILE
     kmlf = kml.Kml()
@@ -1339,7 +1334,7 @@ def mad (inpu,axis=None,normalized=False):
         else: return out
     else:
         out = []
-        print data.shape
+        print (data.shape)
         med = N.ma.median(data,axis=axis)
 
         if axis==1:
@@ -1526,7 +1521,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     buffer2.seek(0)
     
     #UPDATING TABLE WITH UNSURVEYED GLACIER DATA
-    print "Commiting data for unsurveyed glaciers..."
+    print ("Commiting data for unsurveyed glaciers...")
     conn,cur = ConnectDb()
     cur.execute(buffer2.read())
     conn.commit()
@@ -1563,7 +1558,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     buffer.seek(0)
     
     #UPDATING TABLE WITH SURVEYED GLACIER DATA
-    print "Commiting data for surveyed glaciers..."
+    print ("Commiting data for surveyed glaciers...")
     conn,cur = ConnectDb()
     cur.execute(buffer.read())
     conn.commit()
@@ -1572,11 +1567,11 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
         
     #THE USER CAN EXPORT THE OUTPUT TABLE AS A SHAPEFILE IF REQUESTED               
     if type(export_shp) != NoneType:
-        print "Exporting To Shpfile"
+        print ("Exporting To Shpfile")
         sys.stdout.flush()
         os.system("%s -f %s -h localhost altimetry %s" % (init.pgsql2shppath,export_shp,tablename))
 
-    print "Summing up totals" 
+    print ("Summing up totals") 
     sys.stdout.flush()
     start_time = time.time()
     out = {}
@@ -1846,7 +1841,7 @@ def remove_extrap_tables(user,tables=None,schemas=None):
         #print "SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user)
         t = GetSqlData("SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
         if type(t)==NoneType:
-            print "No tables by this user to delete."
+            print ("No tables by this user to delete.")
             return
         tables = t['t']
         schemas = t['table_schema']
@@ -1932,10 +1927,10 @@ def destable(table):
     
     comment = [hard_return(d)for d in des['col_description']]
 
-    print "Table Name: %s" % table
-    print "Table Description: \n\n\t%s\n\n" % (tdes)
-    print "     Column     |    Data Type    |           Description"
-    print "----------------+-----------------+---------------------------------"
+    print ("Table Name: %s" % table)
+    print ("Table Description: \n\n\t%s\n\n" % (tdes))
+    print ("     Column     |    Data Type    |           Description")
+    print ("----------------+-----------------+---------------------------------")
     for t,f,c in zip(des['attname'],des['format_type'],comment):
-        print "%15s | %15s | %s" % (t,f,c)
+        print ("%15s | %15s | %s" % (t,f,c))
     
