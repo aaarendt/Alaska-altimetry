@@ -22,7 +22,7 @@ import time
 import itertools
 from itertools import product as iterproduct
 import sys
-import StringIO
+import io
 from types import *
 import settings as s
 from base64 import b64decode as readpassword
