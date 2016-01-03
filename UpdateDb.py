@@ -8,6 +8,8 @@ import os
 import glob
 import datetime as dtm
 import sys
+import Altimetry as alt
+import json
 
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
@@ -95,7 +97,40 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         dic['rgiid'] = rgiid
     return dic
 
-def lamb_sql_generator(lambfile,rgiid,tableName):
+
+###############################################################################################
+## nameLookup
+##
+## This gathers the names that need to be replaced so as to conform with RGI specifications.
+## Primarily this applies when the glacier has two words in the name. 
+## LAMB convention is to combine into a single word.
+## Use the included rgiLookup.json file to keep an updated list.
+###############################################################################################
+
+def nameLookup(glacierName):
+   with open('rgiLookup.json') as data_file:
+       data = json.load(data_file)
+   return data[glacierName]
+
+###############################################################################################
+## lamb_sql_generator
+##
+## This generates the SQL necessary to INSERT new lines of LAMB data to the database.
+###############################################################################################
+
+def lamb_sql_generator(lambfile,glacierName,tableName):
+
+    try: 
+        gName = nameLookup(glacierName)
+    except:
+        gName = glacierName + ' Glacier'
+
+    query = "SELECT rgiid from modern WHERE name = '" + gName + "'"
+
+    try:
+        rgiid = str(alt.GetSqlData(query)['rgiid'][0])
+    except:
+        print('No rgiid for this glacier')
     
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)

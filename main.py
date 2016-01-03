@@ -34,12 +34,7 @@ with sftp.cd('/home/laser/analysis/'):
                 for fileName in sftp.listdir():
                     if fileName.endswith(".output.txt"):
                         sftp.get(fileName)
-                        query = "SELECT rgiid from modern WHERE name LIKE '" + glacierName + "%'"
-                        try:
-                            rgiid = str(alt.GetSqlData(query)['rgiid'][0])
-                        except:
-                            notInRGI.append(glacierName)
-                        sql = udb.lamb_sql_generator(fileName, rgiid, 'lambtest')
+                        sql = udb.lamb_sql_generator(fileName, glacierName, 'lambtest')
                         engine.execute(sql)
 
 surveyeddata = alt.GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,

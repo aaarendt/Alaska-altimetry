@@ -25,7 +25,6 @@ import sys
 import io
 from types import *
 import settings as s
-from base64 import b64decode as readpassword
     
 def test(a):
    """docstring
@@ -69,7 +68,7 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
 
     serv = getattr(s,server)
 
-    st = "dbname='%s' host='%s' user='%s' password='%s'" % (serv['dbname'],serv['host'],serv['user'],readpassword(serv['password']))
+    st = "dbname='%s' host='%s' user='%s' password='%s'" % (serv['dbname'],serv['host'],serv['user'],serv['password'])
 
     if get_host != None and get_user == None and get_dbname == None: return serv['host']
     if get_host == None and get_user != None and get_dbname == None: return serv['user']
@@ -1733,7 +1732,8 @@ def create_extrapolation_table(user=None,schema=None,table=None):
             table = "alt_result_{user}{number}".format(user=user,number=number)        
     
     sql = """
-SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid;
+SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} 
+FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid;
 
 CREATE SEQUENCE {table}_resultid_seq
     START WITH 1
@@ -1772,7 +1772,13 @@ ALTER TABLE {table} ADD COLUMN  surveyed boolean;
 ALTER TABLE {table} ADD COLUMN  error double precision;
 ALTER TABLE {table} ADD COLUMN  singl_std real;
 
-COMMENT ON TABLE {table} IS 'This table is not raw data, it is a results table that is regenerated anytime someone runs extrapolate.  It can be exported as a shapefile as contains all of the information one needs to interpret the altimetry results in Larsen et al., 2015, both on the glacier scale and on the regional scale. When doing analysis, it is often easiest just to query this table.  This table has many duplicate fields but it doesn''''t really work to make it a vew because it is generated with a lot of python in addition to SQL.  It could just entail added fields to ergibins but since this table is changed everytime the extrapolation is run, I think it is better to keep ergibins untouched and change this table more so.  My experience was this runs way faster as well.  The units in this table are still (m/yr) so must be multiplied by 0.85 to get volume.';
+COMMENT ON TABLE {table} IS 'This table is not raw data, it is a results table that is regenerated anytime someone runs extrapolate. 
+ It can be exported as a shapefile as contains all of the information one needs to interpret the altimetry results in Larsen et al., 2015,
+ both on the glacier scale and on the regional scale. When doing analysis, it is often easiest just to query this table.  
+This table has many duplicate fields but it doesn''''t really work to make it a vew because it is generated with a lot of python in addition to SQL. 
+It could just entail added fields to ergibins but since this table is changed everytime the extrapolation is run, I think it is better to 
+keep ergibins untouched and change this table more so.  My experience was this runs way faster as well.  The units in this table are still (m/yr)
+ so must be multiplied by 0.85 to get volume.';
 COMMENT ON COLUMN {table}.resultid IS 'Primary Key';
 COMMENT ON COLUMN {table}.ergiid IS 'Foreign Key to ergi';
 COMMENT ON COLUMN {table}.name IS 'Glacier Name';
