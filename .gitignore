@@ -1,5 +1,6 @@
 *.ipynb~
 *.txt
 .ipynb_checkpoints/**
+settings.py
 
 
