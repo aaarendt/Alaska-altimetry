@@ -68,7 +68,7 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
 
     serv = getattr(s,server)
 
-    st = "dbname='%s' host='%s' user='%s' password='%s'" % (serv['dbname'],serv['host'],serv['user'],serv['password'])
+    st = "dbname='%s' host='%s' user='%s' password='%s' port = '%s'" % (serv['dbname'],serv['host'],serv['user'],serv['password'],serv['port'])
 
     if get_host != None and get_user == None and get_dbname == None: return serv['host']
     if get_host == None and get_user != None and get_dbname == None: return serv['user']
@@ -374,9 +374,9 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     'lamb.masschange',
     'lamb.massbal',
     'lamb.numdata',
-    'ergi_mat_view.max::real',
-    'ergi_mat_view.min::real',
-    'ergi_mat_view.continentality',
+    #'ergi_mat_view.max::real',
+    #'ergi_mat_view.min::real',
+    #'ergi_mat_view.continentality',
     'ergi_mat_view.area::double precision']
 
     #LIST OF TABLES TO QUERY
@@ -552,13 +552,13 @@ class LambObject:
             if 'massbal' in indata.keys():self.massbal = indata['massbal']
             if 'geom' in indata.keys():self.geom = indata['geom']
             if 'geog' in indata.keys():self.geog = indata['geog']
-            if 'min' in indata.keys():self.min = indata['min']
-            if 'max' in indata.keys():self.max = indata['max']
+            #if 'min' in indata.keys():self.min = indata['min']
+            #if 'max' in indata.keys():self.max = indata['max']
             if 'glaciertype' in indata.keys():self.glaciertype = indata['glaciertype']
             if 'gltype' in indata.keys():self.gltype = indata['gltype']
             if 'numdata' in indata.keys():self.numdata = indata['numdata']
             if 'glimsid' in indata.keys():self.glimsid = indata['glimsid']
-            if 'continentality' in indata.keys():self.continentality = indata['continentality']
+            #if 'continentality' in indata.keys():self.continentality = indata['continentality']
             #if 'eb_best_flx' in indata.keys():self.eb_best_flx = indata['eb_best_flx']
             #if 'eb_high_flx' in indata.keys():self.eb_high_flx = indata['eb_high_flx']
             #if 'eb_low_flx' in indata.keys():self.eb_low_flx = indata['eb_low_flx']

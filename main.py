@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import settings as s
 import pandas as pd
 
+lambrgi = pd.read_excel(r"c:\work\src\ingestAltimetry\lamb_rgi.xlsx") # Kilroy
+
 # connection string info from settings.py
 cs = getattr(s,'localhost_SurfaceBook')
 
@@ -24,7 +26,6 @@ cs = getattr(s,'BairdUAF')
 
 sftp = pysftp.Connection(cs['host'], username=cs['user'], password=cs['password'])
 
-notInRGI = []
 with sftp.cd('/home/laser/analysis/'):
     folderList = sftp.listdir()
     for glacierName in folderList:
@@ -34,7 +35,10 @@ with sftp.cd('/home/laser/analysis/'):
                 for fileName in sftp.listdir():
                     if fileName.endswith(".output.txt"):
                         sftp.get(fileName)
-                        sql = udb.lamb_sql_generator(fileName, glacierName, 'lambtest')
+                        rgiid = (str(lambrgi.loc[lambrgi["LAMB"] == glacierName]["RGIID"].values[0])) 
+                        if rgiid == ' ':
+                            print('Glacier ' + glacierName + ' has no RGIID in table')
+                        sql = udb.lamb_sql_generator(fileName, rgiid, 'lambtest')
                         engine.execute(sql)
 
 surveyeddata = alt.GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True,
@@ -49,3 +53,5 @@ surveyeddata.calc_dz_stats()
 types = ["gltype=0","gltype=1","gltype=2"]
 lamb,userwheres,notused,whereswo,notswo = alt.partition_dataset(types,applytoall=["surge='f'","name NOT IN ('Columbia Glacier','West Yakutat Glacier','East Yakutat Glacier')"])
 results = alt.extrapolate('testing',lamb,whereswo,insert_surveyed_data=surveyeddata,keep_postgres_tbls=False) 
+
+

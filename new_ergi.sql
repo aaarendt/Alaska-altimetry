@@ -1,6 +1,4 @@
-﻿DROP MATERIALIZED VIEW public.new_ergi;
-CREATE MATERIALIZED VIEW public.new_ergi AS
-
+﻿CREATE TABLE erginew AS
 -- code to generate polygons from RGI "enhanced" for altimetry work (ergi)
 -- two types of cases are covered: merging multiple polygons, or reassigning types 
 
@@ -9,7 +7,7 @@ CREATE MATERIALIZED VIEW public.new_ergi AS
  
 -- aaarendt 20160103
 
-SELECT merged.rgiid AS rgiid, merged.area AS area, merged.geom AS geom, modern.glactype AS glactype_modern, modern.name,
+SELECT merged.rgiid AS rgiid, merged.area AS area, merged.geom AS albersgeom, modern.glactype AS glactype_modern, modern.name,
 -- These control statements reassign glacier types
 -- some glaciers need to be considered different types for altimetry purposes (e.g. "paleo-tidewater") 
 CASE
@@ -26,7 +24,7 @@ CASE
    WHEN merged.rgiid = 'RGI40-1.23643' THEN '9199' -- Moraine/Apron
    ELSE modern.glactype
 END
-AS glactype_ergi
+AS gltype
 FROM modern 
 JOIN 
 (SELECT m.newrgiid AS rgiid, sum(m.area) AS area, ST_Union(m.geom) as geom FROM
@@ -48,3 +46,9 @@ JOIN
   AS newrgiid
   FROM modern) AS m GROUP BY m.newrgiid) as merged
   ON merged.rgiid = modern.rgiid;
+
+ALTER TABLE erginew ADD COLUMN ergiid SERIAL;
+UPDATE erginew SET ergiid = nextval(pg_get_serial_sequence('erginew','ergiid'));
+ALTER TABLE erginew ADD PRIMARY KEY(ergiid);
+
+

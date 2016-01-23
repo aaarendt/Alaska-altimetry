@@ -99,38 +99,13 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
 
 
 ###############################################################################################
-## nameLookup
-##
-## This gathers the names that need to be replaced so as to conform with RGI specifications.
-## Primarily this applies when the glacier has two words in the name. 
-## LAMB convention is to combine into a single word.
-## Use the included rgiLookup.json file to keep an updated list.
-###############################################################################################
-
-def nameLookup(glacierName):
-   with open('rgiLookup.json') as data_file:
-       data = json.load(data_file)
-   return data[glacierName]
-
-###############################################################################################
 ## lamb_sql_generator
 ##
 ## This generates the SQL necessary to INSERT new lines of LAMB data to the database.
 ###############################################################################################
 
-def lamb_sql_generator(lambfile,glacierName,tableName):
 
-    try: 
-        gName = nameLookup(glacierName)
-    except:
-        gName = glacierName + ' Glacier'
-
-    query = "SELECT rgiid from modern WHERE name = '" + gName + "'"
-
-    try:
-        rgiid = str(alt.GetSqlData(query)['rgiid'][0])
-    except:
-        print('No rgiid for this glacier')
+def lamb_sql_generator(lambfile,rgiid,tableName):
     
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
@@ -140,7 +115,7 @@ def lamb_sql_generator(lambfile,glacierName,tableName):
     data['interval'] = (data['date2'] - data['date1']).days
     data['date1'] = re.sub('T.*$','',data['date1'].isoformat())
     data['date2'] = re.sub('T.*$','',data['date2'].isoformat())
-    data['rgiid'] = str(rgiid) 
+    data['rgiid'] = rgiid
     
     #STRINGS FOR INSERT SQL STATEMENT
     insert = ''
