@@ -1,13 +1,13 @@
 ﻿-- Materialized View: ergi_mat_view_new
 
--- DROP MATERIALIZED VIEW ergi_mat_view;
+DROP MATERIALIZED VIEW ergi_mat_view;
 
 -- new method for making the ergi view table
 -- no need to use the points files to identify the various types
 -- now this is determined directly from the four character RGI table codes
 
 CREATE MATERIALIZED VIEW ergi_mat_view AS 
- SELECT DISTINCT ON (ergi.ergiid) ergi.ergiid,
+ SELECT DISTINCT ON (ergi.rgiid) ergi.rgiid,
     ergi.area,
     ergi.albersgeom,
     ergi.name,

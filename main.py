@@ -16,7 +16,7 @@ cs = getattr(s,'localhost_SurfaceBook')
 engine = create_engine('postgresql://' + cs['user'] + ':' + cs['password'] + '@' + cs['host'] + ':' + cs['port'] + '/' + cs['dbname'])
 
 # just do this once
-engine.execute("CREATE TABLE lambtest (gid serial PRIMARY KEY, rgiid character varying(14), date1 date, date2 date, \
+engine.execute("CREATE TABLE lambtest (lambid serial PRIMARY KEY, rgiid character varying(14), date1 date, date2 date, \
                interval smallint, volmodel real, vol25diff real,vol75diff real, balmodel real, bal25diff real, \
                bal75diff real,e integer[],dz real[],dz25 real[],dz75 real[],aad real[],masschange real[], \
                massbal real[],numdata integer[]);")

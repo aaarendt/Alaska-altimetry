@@ -352,7 +352,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     # Kilroy says: there has to be better way to get this list of columns. Pandas?
     fields = [
     'lamb.lambid',
-    'lamb.ergiid',
+    'lamb.rgiid', 
     'lamb.date1',
     'lamb.date2',
     'lamb.interval',
@@ -382,7 +382,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     #LIST OF TABLES TO QUERY
     tables = [
     "FROM lamb",
-    "LEFT JOIN ergi_mat_view ON lamb.ergiid=ergi_mat_view.ergiid"]
+    "LEFT JOIN ergi_mat_view ON lamb.rgiid=ergi_mat_view.rgiid"]
     
     if get_glimsid:
         fields.append('ergi.glimsid')
@@ -415,8 +415,8 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     orderby_init = []   
     if longest_interval:
         removerepeats = False
-        distinct = "DISTINCT ON (lamb.ergiid)"
-        orderby_init.extend(["lamb.ergiid","lamb.interval DESC"])
+        distinct = "DISTINCT ON (lamb.rgiid)"
+        orderby_init.extend(["lamb.rgiid","lamb.interval DESC"])
     else:
         distinct = ''
         #THIS ORDER IS NEEDED TO REMOVE REPEATS IF THIS OPTION IS SELECTED.  DATA WILL BE REODERED IF SPECIFIED BY THE USER
