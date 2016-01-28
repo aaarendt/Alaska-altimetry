@@ -349,7 +349,6 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     ====================================================================================================        
     """
     #LIST OF FIELDS TO QUERY
-    # Kilroy says: there has to be better way to get this list of columns. Pandas?
     fields = [
     'lamb.lambid',
     'lamb.rgiid', 
@@ -374,10 +373,11 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     'lamb.masschange',
     'lamb.massbal',
     'lamb.numdata',
-    #'ergi_mat_view.max::real',
-    #'ergi_mat_view.min::real',
+    'ergi_mat_view.max::real',
+    'ergi_mat_view.min::real',
     #'ergi_mat_view.continentality',
-    'ergi_mat_view.area::double precision']
+    'ergi_mat_view.area::double precision',
+    'ergi_mat_view.rgiid']
 
     #LIST OF TABLES TO QUERY
     tables = [
@@ -478,7 +478,12 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         
         if get_hypsometry:
             for i in s:
-                hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
+                # AAA
+                # hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
+                # AAA
+                print("ERGIID = " + str(i['rgiid']))
+                hyps = GetSqlData("SELECT b.area::real as binned_area, b.bins::real, b.normbins::real FROM ergibins AS b, ergi AS e WHERE ST_Contains(e.albersgeom,b.albersgeom) AND e.rgiid ='%s' ORDER BY normbins" % i['rgiid'])
+                print(hyps)
                 for key in ('binned_area','bins','normbins'):i[key]=hyps[key]
 
         if by_column:s = LambToColumn(s)
@@ -492,8 +497,11 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
             s['binned_area'] = []
             s['bins'] = []
             s['normbins'] = []
-            for ergiidt in s['ergiid']:
-                hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
+            for ergiidt in s['rgiid']:
+                # AAA
+                 #hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
+                # AAA 
+                hyps = GetSqlData("SELECT b.area::real as binned_area, b.bins::real, b.normbins::real FROM ergibins AS b, ergi AS e WHERE ST_Contains(e.albersgeom,b.albersgeom) AND rgiid='%s' ORDER BY normbins" % ergiidt)
                 s['binned_area'].append(hyps['binned_area'])
                 s['bins'].append(hyps['bins'])
                 s['normbins'].append(hyps['normbins'])
@@ -552,8 +560,8 @@ class LambObject:
             if 'massbal' in indata.keys():self.massbal = indata['massbal']
             if 'geom' in indata.keys():self.geom = indata['geom']
             if 'geog' in indata.keys():self.geog = indata['geog']
-            #if 'min' in indata.keys():self.min = indata['min']
-            #if 'max' in indata.keys():self.max = indata['max']
+            if 'min' in indata.keys():self.min = indata['min']
+            if 'max' in indata.keys():self.max = indata['max']
             if 'glaciertype' in indata.keys():self.glaciertype = indata['glaciertype']
             if 'gltype' in indata.keys():self.gltype = indata['gltype']
             if 'numdata' in indata.keys():self.numdata = indata['numdata']
@@ -1730,10 +1738,12 @@ def create_extrapolation_table(user=None,schema=None,table=None):
         else: 
             number = N.array(n['substring']).astype(int).max()+1
             table = "alt_result_{user}{number}".format(user=user,number=number)        
+
+# FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid; # Evan's second line of SQL below; I replace with ST_contains
     
     sql = """
 SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} 
-FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid;
+FROM ergibins as b, ergi_mat_view AS e WHERE ST_Contains(e.albersgeom,b.albersgeom);
 
 CREATE SEQUENCE {table}_resultid_seq
     START WITH 1

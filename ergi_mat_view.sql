@@ -7,10 +7,12 @@ DROP MATERIALIZED VIEW ergi_mat_view;
 -- now this is determined directly from the four character RGI table codes
 
 CREATE MATERIALIZED VIEW ergi_mat_view AS 
- SELECT DISTINCT ON (ergi.rgiid) ergi.rgiid,
+ SELECT DISTINCT ON (ergi.glimsid) ergi.glimsid,
     ergi.area,
     ergi.albersgeom,
     ergi.name,
+	ergi.max,
+	ergi.min,
 	CASE 
 	   WHEN ergi.gltype LIKE '_0__' THEN 0 -- Land Terminating
 	   WHEN ergi.gltype LIKE '_1__' THEN 1 -- Tidewater
@@ -37,7 +39,7 @@ CREATE MATERIALIZED VIEW ergi_mat_view AS
           WHERE st_contains(br.albersgeom, st_centroid(ergi_1.albersgeom))) b ON ergi.ergiid = b.ergiid
 WITH DATA;
 
-ALTER TABLE ergi_mat_view_new
+ALTER TABLE ergi_mat_view
   OWNER TO arendta;
-GRANT ALL ON TABLE ergi_mat_view_new TO arendta;
-GRANT ALL ON TABLE ergi_mat_view_new TO reader;
+GRANT ALL ON TABLE ergi_mat_view TO arendta;
+GRANT ALL ON TABLE ergi_mat_view TO reader;
