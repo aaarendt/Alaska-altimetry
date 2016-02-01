@@ -74,7 +74,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         masschange = masschange.astype(str)
         massbal = massbal.astype(str)
         numdata = numdata.astype(str) 
-        rgiid = str(0)
+        glimsid = str(0)
         
     if as_dict == 1:
         dic={} 
@@ -94,7 +94,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         dic['masschange'] = masschange
         dic['massbal'] = massbal
         dic['numdata'] = numdata
-        dic['rgiid'] = rgiid
+        dic['glimsid'] = glimsid
     return dic
 
 
@@ -105,7 +105,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
 ###############################################################################################
 
 
-def lamb_sql_generator(lambfile,rgiid,tableName):
+def lamb_sql_generator(lambfile,glimsid,tableName):
     
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
@@ -115,7 +115,7 @@ def lamb_sql_generator(lambfile,rgiid,tableName):
     data['interval'] = (data['date2'] - data['date1']).days
     data['date1'] = re.sub('T.*$','',data['date1'].isoformat())
     data['date2'] = re.sub('T.*$','',data['date2'].isoformat())
-    data['rgiid'] = rgiid
+    data['glimsid'] = glimsid
     
     #STRINGS FOR INSERT SQL STATEMENT
     insert = ''
@@ -136,7 +136,7 @@ def lamb_sql_generator(lambfile,rgiid,tableName):
                 values = values + ', ' + s
             elif type(data[key]) == str:
                 if re.search('\d{4}\-\d{2}\-\d{2}',data[key]): data[key] = "'"+data[key]+"'" 
-                if key == 'rgiid': 
+                if key == 'glimsid': 
                     data[key] = "'"+data[key]+"'" # Kilroy
                 values = values + ', ' + data[key]
             else:values = values + ', ' + str(data[key])

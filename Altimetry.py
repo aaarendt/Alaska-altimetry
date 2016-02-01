@@ -22,7 +22,7 @@ import time
 import itertools
 from itertools import product as iterproduct
 import sys
-import io
+import StringIO
 from types import *
 import settings as s
     
@@ -351,7 +351,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     #LIST OF FIELDS TO QUERY
     fields = [
     'lamb.lambid',
-    'lamb.rgiid', 
+    'lamb.glimsid', 
     'lamb.date1',
     'lamb.date2',
     'lamb.interval',
@@ -377,13 +377,14 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     'ergi_mat_view.min::real',
     #'ergi_mat_view.continentality',
     'ergi_mat_view.area::double precision',
-    'ergi_mat_view.rgiid']
+    'ergi_mat_view.glimsid']
 
     #LIST OF TABLES TO QUERY
     tables = [
     "FROM lamb",
-    "LEFT JOIN ergi_mat_view ON lamb.rgiid=ergi_mat_view.rgiid"]
+    "LEFT JOIN ergi_mat_view ON lamb.glimsid=ergi_mat_view.glimsid"]
     
+# Kilroy: fix this soon
     if get_glimsid:
         fields.append('ergi.glimsid')
         tables.append("INNER JOIN ergi ON ergi_mat_view.ergiid=ergi.ergiid")
@@ -399,7 +400,19 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     if results:
         fields.extend(["rlt.rlt_totalGt","rlt.rlt_totalkgm2","rlt.rlt_errGt","rlt.rlt_errkgm2","rlt.rlt_singlerrGt","rlt.rlt_singlerrkgm2"])
         
-        tables.append("""LEFT JOIN (SELECT ergiid,
+        #tables.append("""LEFT JOIN (SELECT ergiid,
+        #SUM(area)/1000000. as area,
+        #SUM(mean*area)/1e9*%5.3f::real as rlt_totalGt,
+        #SUM(mean*area)/SUM(area)*%5.3f::real as rlt_totalkgm2,
+        #(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 
+        #+ (%5.3f)^2)^0.5::real as rlt_errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)
+        #*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_errkgm2,
+        #(((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)
+        #*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
+        #(((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2
+        #+ (%5.3f)^2)^0.5::real as rlt_singlerrGt FROM altimetryextrapolation GROUP BY ergiid) AS rlt ON ergi_mat_view.ergiid=rlt.ergiid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
+
+        tables.append("""LEFT JOIN (SELECT glimsid,
         SUM(area)/1000000. as area,
         SUM(mean*area)/1e9*%5.3f::real as rlt_totalGt,
         SUM(mean*area)/SUM(area)*%5.3f::real as rlt_totalkgm2,
@@ -409,14 +422,14 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)
         *SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as rlt_singlerrkgm2,
         (((((SUM(singl_std*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2
-        + (%5.3f)^2)^0.5::real as rlt_singlerrGt FROM altimetryextrapolation GROUP BY ergiid) AS rlt ON ergi_mat_view.ergiid=rlt.ergiid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
+        + (%5.3f)^2)^0.5::real as rlt_singlerrGt FROM altimetryextrapolation GROUP BY glimsid) AS rlt ON ergi_mat_view.glimsid=rlt.glimsid""" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err,density_err,density,density,acrossgl_err))
 
     #OPTION TO RETRIEVE ONLY THE LONGEST INTERVAL
     orderby_init = []   
     if longest_interval:
         removerepeats = False
-        distinct = "DISTINCT ON (lamb.rgiid)"
-        orderby_init.extend(["lamb.rgiid","lamb.interval DESC"])
+        distinct = "DISTINCT ON (lamb.glimsid)"
+        orderby_init.extend(["lamb.glimsid","lamb.interval DESC"])
     else:
         distinct = ''
         #THIS ORDER IS NEEDED TO REMOVE REPEATS IF THIS OPTION IS SELECTED.  DATA WILL BE REODERED IF SPECIFIED BY THE USER
@@ -481,8 +494,8 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
                 # AAA
                 # hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
                 # AAA
-                print("ERGIID = " + str(i['rgiid']))
-                hyps = GetSqlData("SELECT b.area::real as binned_area, b.bins::real, b.normbins::real FROM ergibins AS b, ergi AS e WHERE ST_Contains(e.albersgeom,b.albersgeom) AND e.rgiid ='%s' ORDER BY normbins" % i['rgiid'])
+                print("glimsid = " + str(i['glimsid']))
+                hyps = GetSqlData("SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid ='%s' ORDER BY normbins" % i['glimsid'])
                 print(hyps)
                 for key in ('binned_area','bins','normbins'):i[key]=hyps[key]
 
@@ -497,11 +510,11 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
             s['binned_area'] = []
             s['bins'] = []
             s['normbins'] = []
-            for ergiidt in s['rgiid']:
+            for ergiidt in s['glimsid']:
                 # AAA
                  #hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
                 # AAA 
-                hyps = GetSqlData("SELECT b.area::real as binned_area, b.bins::real, b.normbins::real FROM ergibins AS b, ergi AS e WHERE ST_Contains(e.albersgeom,b.albersgeom) AND rgiid='%s' ORDER BY normbins" % ergiidt)
+                hyps = GetSqlData("SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid='%s' ORDER BY normbins" % ergiidt)
                 s['binned_area'].append(hyps['binned_area'])
                 s['bins'].append(hyps['bins'])
                 s['normbins'].append(hyps['normbins'])
@@ -533,7 +546,7 @@ class LambObject:
         #print indata.keys()
         for i,key in enumerate(indata.keys()):
             if 'lambid' in indata.keys():self.lambid = indata['lambid']
-            if 'ergiid' in indata.keys():self.ergiid = indata['ergiid']
+            # if 'ergiid' in indata.keys():self.ergiid = indata['ergiid']
             if 'gid' in indata.keys():self.gid = indata['gid']
             if 'glid' in indata.keys():self.glid = indata['glid']
             if 'date1' in indata.keys():self.date1 = indata['date1']
@@ -623,7 +636,7 @@ class LambObject:
         ====================================================================================================    
         """        
         if type(self.name) == list:
-            self.norme = N.arange(0,1,0.01,dtype=N.float32)
+            self.norme = N.arange(0,1,0.01)
             self.normdz = []
             self.norm25 = []
             self.norm75 = []
@@ -651,9 +664,7 @@ class LambObject:
                 new25shold = N.interp(self.norme,x,y25)
                 new75shold = N.interp(self.norme,x,y75)
                 iqr = new75shold - new25shold 
-                #print 'ehrererasdfa'
-                
-                
+                            
                 if type(obj) == N.ma.core.MaskedArray: 
                      #print 'masked!!!!'
                      mask = N.interp(self.norme,x,N.ma.getmask(obj).astype(float),N.nan,N.nan).round().astype(bool)
@@ -670,19 +681,8 @@ class LambObject:
                
             return self.norme,self.normdz,self.norm25,self.norm75,self.survIQRs
         else:
-                  
-            #mn = N.min([N.min(x) for x in self.e])
-            #mx = N.max([N.max(x) for x in self.e])
-            
-       	    self.norme = N.arange(0,1,0.01,dtype=N.float32)
-       	
-            #self.normdz = []
-            #self.norm25 = []
-            #self.norm75 = []
-            #self.survIQRs = []
-            
-            #for j,obj in enumerate(self.dz):
-            
+            self.norme = N.arange(0,1,0.01)
+  
             if gaussian != None:
                 interval = self.e[1]-self.e[0]
                 sigma_intervals = gaussian / interval
@@ -1274,59 +1274,6 @@ def partition_dataset(*args,**kwargs):
             notused.append(userwhere)
             notused2.append(userwhere2)
     return lamb,userwheres2,notused2,userwheres,notused
-
-def coords_to_polykml (outputfile, inpt,inner=None, name=None,setcolors=None):
-    """Outputs polygons to a kml. Warning this isn't super robust.  But here you can enter an 
-    output filepath and an input geometry that would be returned by GetSqlData. Sspefically it will
-    take geometries as dictionariers with 'outer' and 'inner' keys to include the 
-    outer ring and the inner rings.  This also allows you to set the polygon color.  You can 
-    set setcolors='random' and it will make each polygon a random color instead of the same color. 
-    """
-    colors = ['e6d8ad','8A2BE2','A52A2A','DEB887','5F9EA0','7FFF00','D2691E','FF7F50','6495ED','FFF8DC','DC143C','00FFFF','00008B','008B8B','B8860B','A9A9A9','006400','BDB76B','8B008B','556B2F','FF8C00','9932CC','8B0000','E9967A','8FBC8F','483D8B','2F4F4F','00CED1','9400D3','FF1493','00BFFF','696969','1E90FF','B22222','FFFAF0','228B22','FF00FF','DCDCDC','F8F8FF','FFD700','DAA520','808080']        
-    print (len(colors))
-    c = 0
-    #START KML FILE
-    kmlf = kml.Kml()
-    
-    if type(inpt) == dict:
-        lst = [inpt]
-    
-    elif type(inpt) == list:
-
-        if type(inpt[0]) ==list:
-
-            lst=[{}]
-            lst[0]['outer'] = inpt
-            lst[0]['inner'] = inner
-        else: lst = inpt
-    
-    for i,poly in enumerate(lst):
-        
-        if not 'name' in poly.keys():
-            poly['name']='Glacier'
-
-        if type(poly['inner']) == list: 
-            test = type(poly['inner'][0])
-        else: 
-            test = type(poly['inner'])
-            
-        if test == NoneType:
-            pol = kmlf.newpolygon(name=poly['name'],outerboundaryis=poly['outer'])
-        else:
-            pol = kmlf.newpolygon(name=poly['name'],outerboundaryis=poly['outer'],innerboundaryis=poly['inner'])
-
-        #APPEARANCE FORMATTING
-        if setcolors == 'random': 
-            #print 'random'
-            color = colors[c]
-            if c < 41:c += 1
-            else:c=0
-        else: color = colors[0]
-        pol.style.polystyle.color = kml.Color.hexa(color+'55')
-        pol.style.polystyle.outline = 0
-            
-    kmlf.savekmz(outputfile) 
-    
     
 def mad (inpu,axis=None,normalized=False):
     """Calculates a Median Absolute Deviation of an input dataset.  MAD can be calculated along a single axis
@@ -1497,8 +1444,14 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
             #IF USERS DON'T SPECIFY SURVEYED DATA TO INSERT, WE WILL JUST EXTRAPOLATE TO SURVEYED GLACIERS
             wheres2 = wheres[:]
             if type(insert_surveyed_data)!=NoneType: 
-                wheres2.append("ergiid NOT IN (%s)" % ','.join(grp.ergiid.astype(str)))        
-            
+                ### AAA
+                #wheres2.append("ergiid NOT IN (%s)" % ','.join(grp.ergiid.astype(str)))        
+                ### AAA
+                query = "glimsid NOT IN (%s)" %(grp.glimsid)
+                query=query.replace("[","")
+                query=query.replace("]","")
+                wheres2.append(query)        
+             
             where = " AND ".join(wheres2)
 
             #THE UPDATE STATEMENT FOR UNSURVEYED DATA ONLY
@@ -1515,7 +1468,13 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
             #THIS IS SEPARATE FROM THE UNCERTAINTY FOR INDIVIDUAL GLACIERS
             
             if type(insert_surveyed_data)!=NoneType: 
-                wheres.append("ergiid IN (%s)" % ','.join(grp.ergiid.astype(str)))        
+                ### AAA
+                # wheres.append("ergiid IN (%s)" % ','.join(grp.ergiid.astype(str)))  
+                ### AAA
+                query = "glimsid IN (%s)" %(grp.glimsid)
+                query=query.replace("[","")
+                query=query.replace("]","")
+                wheres.append(query)        
             
                 where = " AND ".join(wheres)
                 
@@ -1528,8 +1487,9 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     buffer2.seek(0)
     
     #UPDATING TABLE WITH UNSURVEYED GLACIER DATA
-    print ("Commiting data for unsurveyed glaciers...")
+    print ("Committing data for unsurveyed glaciers...")
     conn,cur = ConnectDb()
+    #print(buffer2.read())
     cur.execute(buffer2.read())
     conn.commit()
     cur.close()
@@ -1542,16 +1502,16 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
        
     #SURVEYED GLACIER DATA INTO RESULT TABLE.  HERE WE ARE INSERTING THE SURVEYED DATA FOR SPECFIC GLACIERS   
     if type(insert_surveyed_data)!=NoneType:
-        for eid,ergid in enumerate(insert_surveyed_data.ergiid):
+        for eid,glid in enumerate(insert_surveyed_data.glimsid):
             for i in N.linspace(0,99,100):
                 
                 #SINCE THE DATA IS SCALED TO 0-100 THERE IS ACTUALLY A POSSIBILITY OF 101 VALUES. 
                 # SINCE THEY ARE ALL 0 UP AT THE TOP WE JUST EXTEND THAT TO THE TOP BIN.
                 if i != 99:
-                    where = "ergiid={ergiid} AND normbins={norme:.2}".format(ergiid=ergid, norme=insert_surveyed_data.norme[i])
+                    #where = "glimsid=" + "'" + glid + "'" + " AND normbins={norme:.2}".format(norme=insert_surveyed_data.norme[i])
+                    where = "glimsid=" + "'" + glid + "'" + " AND normbins=" + str(insert_surveyed_data.norme[i])
                 else:
-                    where = "ergiid={ergiid} AND normbins IN (0.99,1)".format(ergiid=ergid, 
-                                                                              norme=insert_surveyed_data.norme[i])
+                    where = "glimsid=" + "'" + glid + "'" + " AND normbins IN (0.99,1)"
                     
                 
                 #THE UPDATE QUERY FOR SURVEYED DATA ONLY
@@ -1738,12 +1698,10 @@ def create_extrapolation_table(user=None,schema=None,table=None):
         else: 
             number = N.array(n['substring']).astype(int).max()+1
             table = "alt_result_{user}{number}".format(user=user,number=number)        
-
-# FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.ergiid=e.ergiid; # Evan's second line of SQL below; I replace with ST_contains
     
     sql = """
-SELECT b.ergibinsid as resultid,b.ergiid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} 
-FROM ergibins as b, ergi_mat_view AS e WHERE ST_Contains(e.albersgeom,b.albersgeom);
+SELECT e.glimsid, b.ergibinsid as resultid,b.area,e.area as glarea,b.albersgeom,b.bins,b.normbins,e.gltype,e.surge,e.name,e.region INTO {schema}.{table} 
+FROM ergibins as b INNER JOIN ergi_mat_view AS e ON b.glimsid=e.glimsid; 
 
 CREATE SEQUENCE {table}_resultid_seq
     START WITH 1
@@ -1757,15 +1715,15 @@ ALTER SEQUENCE {table}_resultid_seq OWNED BY {table}.resultid;
 ALTER TABLE ONLY {table} ALTER COLUMN resultid SET DEFAULT nextval('{table}_resultid_seq'::regclass);
 ALTER TABLE ONLY {table}
     ADD CONSTRAINT {table}_pkey PRIMARY KEY (resultid);
-CREATE INDEX {table}ergiid ON {table} USING btree (ergiid);
+--CREATE INDEX {table}ergiid ON {table} USING btree (ergiid);
 CREATE INDEX {table}normbins ON {table} USING btree (normbins);
 CREATE INDEX {table}gltype ON {table} USING btree (gltype);
 CREATE INDEX {table}region ON {table} USING btree (region);
 CREATE INDEX {table}glarea ON {table} USING btree (glarea);
 
 CREATE INDEX {table}geom ON {table} USING gist (albersgeom);
-ALTER TABLE ONLY {table}
-    ADD CONSTRAINT {table}fkergi FOREIGN KEY (ergiid) REFERENCES ergi(ergiid) MATCH FULL;
+--ALTER TABLE ONLY {table}
+--    ADD CONSTRAINT {table}fkergi FOREIGN KEY (ergiid) REFERENCES ergi(ergiid) MATCH FULL;
 ALTER TABLE {table} ADD COLUMN mean double precision;
 ALTER TABLE {table} ADD COLUMN median real;
 ALTER TABLE {table} ADD COLUMN std real;
@@ -1790,7 +1748,7 @@ It could just entail added fields to ergibins but since this table is changed ev
 keep ergibins untouched and change this table more so.  My experience was this runs way faster as well.  The units in this table are still (m/yr)
  so must be multiplied by 0.85 to get volume.';
 COMMENT ON COLUMN {table}.resultid IS 'Primary Key';
-COMMENT ON COLUMN {table}.ergiid IS 'Foreign Key to ergi';
+-- COMMENT ON COLUMN {table}.ergiid IS 'Foreign Key to ergi';
 COMMENT ON COLUMN {table}.name IS 'Glacier Name';
 COMMENT ON COLUMN {table}.gltype IS 'Terminus Type 0=land, 1=tide,2=lake';
 COMMENT ON COLUMN {table}.surge IS 'Surge Type?';

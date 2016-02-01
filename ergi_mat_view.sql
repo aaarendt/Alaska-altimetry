@@ -8,6 +8,7 @@ DROP MATERIALIZED VIEW ergi_mat_view;
 
 CREATE MATERIALIZED VIEW ergi_mat_view AS 
  SELECT DISTINCT ON (ergi.glimsid) ergi.glimsid,
+    ergi.ergiid,
     ergi.area,
     ergi.albersgeom,
     ergi.name,
