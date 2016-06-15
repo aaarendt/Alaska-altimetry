@@ -2,5 +2,10 @@
 *.txt
 .ipynb_checkpoints/**
 settings.py
-
+*.config
+*.suo
+*.pyc
+*.pyproj
+*.sln
+*.xlsx
 
