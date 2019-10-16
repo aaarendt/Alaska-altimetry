@@ -1,6 +1,6 @@
 *.ipynb~
 *.txt
-.ipynb_checkpoints
+.ipynb_checkpoints/**
 settings.py
 *.config
 *.suo

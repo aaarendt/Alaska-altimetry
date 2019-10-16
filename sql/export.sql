@@ -2,7 +2,7 @@
 copy ( 
 select rgiid, a3.glimsid, massbal from modern
 join
-(select glimsid, massbal from ergi
+(select glimsid, massbal*area AS massbal from ergi
 join 
 (select ergiid, s/a * 0.85 as massbal
 from
@@ -13,7 +13,6 @@ on
 (ergi.ergiid = a2.ergiid)) as a3
 on 
 (modern.glimsid = a3.glimsid)
-) as a4
-where massbal is null;
+
 )
 TO 'C:\work\AlaskaAltimetry.csv' DELIMITER ',' CSV HEADER;
