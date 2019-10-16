@@ -2,7 +2,7 @@
 copy ( 
 select rgiid, a3.glimsid, massbal from modern
 join
-(select glimsid, massbal*area AS massbal from ergi
+(select glimsid, massbal from ergi
 join 
 (select ergiid, s/a * 0.85 as massbal
 from
