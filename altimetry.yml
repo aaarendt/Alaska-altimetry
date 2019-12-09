@@ -1,0 +1,14 @@
+name: altimetry
+channels:
+- conda-forge
+dependencies:
+- python = 2.7
+- ConfigParser
+- matplotlib 
+- numpy 
+- gdal
+- scipy 
+- simplekml 
+- xlrd 
+- jupyter
+- jupyterlab
