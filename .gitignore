@@ -9,3 +9,5 @@ settings.py
 *.sln
 *.xlsx
 *.htm
+altimetry.egg-info
+.env.yml

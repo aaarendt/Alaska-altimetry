@@ -12,3 +12,7 @@ dependencies:
 - xlrd 
 - jupyter
 - jupyterlab
+- psycopg2
+- yaml
+- pip:
+    - ppygis
