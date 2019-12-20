@@ -1,6 +1,7 @@
 *.ipynb~
 *.txt
 .ipynb_checkpoints/**
+notebooks/.ipynb_checkpoints/**
 settings.py
 *.config
 *.suo
@@ -11,3 +12,4 @@ settings.py
 *.htm
 altimetry.egg-info
 .env.yaml
+paramiko.log
