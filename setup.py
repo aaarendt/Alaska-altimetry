@@ -26,5 +26,5 @@ setup(name='altimetry',
     url='https://github.com/aaarendt/ingestAltimetry',
     packages=find_packages(),
     long_description=long_description,
-    scripts=['AltPy/altimetry.py', 'AltPy/main.py', 'AltPy/UpdateDb.py']
+    scripts=['AltPy/Altimetry.py', 'AltPy/main.py', 'AltPy/UpdateDb.py']
 )
