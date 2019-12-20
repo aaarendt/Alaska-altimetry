@@ -1,17 +1,8 @@
 import pandas as pd
-import pysftp
 import Altimetry as alt
 import UpdateDb as udb
-from sqlalchemy import create_engine
-from matplotlib.pyplot import *
-import matplotlib.pyplot as plt
-import settings as s
 import pandas as pd
-
-# connection string info from settings.py
-cs = getattr(s,'defaulthost')
-
-engine = create_engine('postgresql://' + cs['user'] + ':' + cs['password'] + '@' + cs['host'] + ':' + cs['port'] + '/' + cs['dbname'])
+import paramiko
 
 # just do this once
 engine.execute("CREATE TABLE lamb (lambid serial PRIMARY KEY, glimsid character varying(14), date1 date, date2 date, \
@@ -19,26 +10,34 @@ engine.execute("CREATE TABLE lamb (lambid serial PRIMARY KEY, glimsid character 
                bal75diff real,e integer[],dz real[],dz25 real[],dz75 real[],aad real[],masschange real[], \
                massbal real[],numdata integer[]);")
 
-# connection string info from settings.py
-cs = getattr(s,'BairdUAF')
+# get the list of glaciers to read in; for now just a single glacier for testing 
 
-sftp = pysftp.Connection(cs['host'], username=cs['user'], password=cs['password'])
+lambList = ['Tsina']
 
-# get the list of glaciers to read in 
+paramiko.util.log_to_file("paramiko.log")
 
-lambList = pd.read_sql('lambnames',engine)
- 
-with sftp.cd('/home/laser/analysis/'):
-    for glacierName in lambList['name']:
-        print(glacierName)
-        if sftp.exists(glacierName + '/results'):
-            with (sftp.cd(glacierName + '/results/')):
-                for fileName in sftp.listdir():
-                    if fileName.endswith(".output.txt"):
-                        sftp.get(fileName)
-                        glimsid = (str(lambList.loc[lambList["name"] == glacierName]["glimsid"].values[0])) 
-                        sql = udb.lamb_sql_generator(fileName, glimsid, 'lamb')
-                        engine.execute(sql)
+# Open a transport
+host,port = cs['host'],22
+transport = paramiko.Transport((host,port))
+
+# Auth    
+username,password = cs['username'],cs['password']
+transport.connect(None,username,password)
+
+# Go!    
+sftp = paramiko.SFTPClient.from_transport(transport)
+
+sftp.chdir('/home/laser/analysis/')
+
+for glacierName in lambList:
+    print(glacierName)
+    sftp.chdir(glacierName + '/results/')
+    for fileName in sftp.listdir():
+            if fileName.endswith(".output.txt"):
+                sftp.get(fileName, fileName)
+                glimsid = (str(lambList.loc[lambList["name"] == glacierName]["glimsid"].values[0])) 
+                sql = udb.lamb_sql_generator(fileName, glimsid, 'lamb')
+                engine.execute(sql)
 
 
 surveyeddata = alt.GetLambData(verbose=False,longest_interval=True,interval_max=30,interval_min=5,by_column=True, as_object=True)
