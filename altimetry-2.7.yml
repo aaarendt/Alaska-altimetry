@@ -1,4 +1,4 @@
-name: altimetry
+name: altimetry-2.7
 channels:
 - conda-forge
 dependencies:
