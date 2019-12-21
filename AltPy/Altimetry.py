@@ -1,5 +1,4 @@
 import psycopg2
-import ppygis
 import scipy.stats.mstats as mstats
 import scipy.stats as stats
 from scipy.stats import distributions
@@ -22,35 +21,19 @@ import time
 import itertools
 from itertools import product as iterproduct
 import sys
-import StringIO
 from types import *
-import settings as s
     
-def test(a):
-   """docstring
-   test
-   """
-   if a == 1:
-     return "test 1"
-   else:
-     return "test some other number"
- 
 
-def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbose=False):
+def ConnectDb(ConnectionString, server=None, get_host=None, get_user=None, get_dbname=None):
     """====================================================================================================
     Altimetry.Altimetry.ConnectDb
 
-    Evan Burgess 2015-04-22
     ====================================================================================================
     Purpose:
         Connect to a postgres database.  
     
     Returns: 
-            If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and 
-            cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the 
-            defaulthost' as declared in settings.py.  The user can specify a different server
-            by updating settings.py with the proper information and then specifying the name of the proper
-            dictionary object with the keyword server.
+            If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the defaulthost' as declared in settings.py.  The user can specify a different server by updating settings.py with the proper information and then specifying the name of the proper dictionary object with the keyword server.
                    
     connection,cursor = ConnectDb(**kwargs)
   
@@ -66,21 +49,19 @@ def ConnectDb(server=None, get_host=None, get_user=None, get_dbname=None, verbos
     """
     if server == None:server='defaulthost'
 
-    serv = getattr(s,server)
+    cs = ConnectionString
 
-    st = "dbname='%s' host='%s' user='%s' password='%s' port = '%s'" % (serv['dbname'],serv['host'],serv['user'],serv['password'],serv['port'])
+    st = "dbname='%s' host='%s' user='%s' password='%s' port = '%s'" % (cs['SQL_DATABASE'],cs['SQL_HOSTNAME'],cs['SQL_USERNAME'],cs['SQL_PASSWORD'],cs['SQL_PORT'])
 
-    if get_host != None and get_user == None and get_dbname == None: return serv['host']
-    if get_host == None and get_user != None and get_dbname == None: return serv['user']
-    if get_host == None and get_user == None and get_dbname != None: return serv['dbname']
-    
-    if verbose: print(st)     
+    if get_host != None and get_user == None and get_dbname == None: return cs['SQL_HOSTNAME']
+    if get_host == None and get_user != None and get_dbname == None: return cs['SQL_USERNAME']
+    if get_host == None and get_user == None and get_dbname != None: return cs['SQL_DATABASE']
     
     if get_host==None and get_user == None and get_dbname == None:
         conn = psycopg2.connect(st)
         cur = conn.cursor()
         return conn,cur
-    
+ 
 def kurtosistest_evan(a, axis=0):
 
     """====================================================================================================

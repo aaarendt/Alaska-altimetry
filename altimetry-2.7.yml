@@ -14,5 +14,7 @@ dependencies:
 - jupyterlab
 - psycopg2
 - yaml
+- pandas
+- paramiko
 - pip:
     - ppygis

@@ -1,57 +1,150 @@
 import re
-import numpy as N
-from time import mktime
-from datetime import datetime
-from time import mktime
 import time
+from time import mktime
+import datetime
+import numpy as np
 import os
-import glob
-import datetime as dtm
 import sys
-import Altimetry as alt
-import json
 
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-##############################################################################################
-##READ LAMB FILE
-##############################################################################################
+def get_ftp_data(connectionString, glacierNames, tempDirectory):
+    '''
+    Instantiaties a connection to a remote FTP site to acquire the raw altimetry data
+
+    Parameters
+    ----------
+    connectionString: a list of key value pairs containing username, password, hostname
+                    needed to connect to the ftp site
+    glacierNames: a pandas dataframe of glacier names that you want to acquire
+                name: (string) Note, use the "first name" only, e.g. 
+                            "Tsina" not "Tsina Glacier".
+                glimsid: (string) the Global Land Ice Measurements from Space ID 
+    tempDirectory: a temporary location to store the raw lamb data files (mmm...raw lamb)
+
+        Returns: a secure ftp (sftp) object
+    '''
+    import paramiko
+
+    cs = connectionString
+
+    paramiko.util.log_to_file("paramiko.log")
+
+    # Open a transport
+    host,port = cs['host'],22
+    transport = paramiko.Transport((host,port))
+
+    # Auth    
+    username,password = cs['username'],cs['password']
+    transport.connect(None,username,password)
+
+    # Go!    
+    sftp = paramiko.SFTPClient.from_transport(transport)
+
+    for glacierName in glacierNames['name']:
+        print(glacierName)
+        sftp.chdir('/home/laser/analysis/' + glacierName + '/results/')
+        for fileName in sftp.listdir():
+            if fileName.endswith(".output.txt"):
+                sftp.get(fileName, tempDirectory + fileName)
+                # I guess previously we were looking these up in the ice2oceans db?
+                #glimsid = (str(lambList.loc[lambList["name"] == glacierName]["glimsid"].values[0])) 
+                glimsid = glacierNames[glacierNames['name']==glacierName]['glimsid']
+                sql = lamb_sql_generator(tempDirectory + fileName, glimsid, 'lamb')
+                print(sql)
+                #engine.execute(sql)
+
+
+def lamb_sql_generator(lambfile,glimsid,tableName):
+    '''
+    This generates the SQL necessary to INSERT new lines of LAMB data to the database.
+    '''
+
+    #READING LAMBFILE INTO DICTIONARY    
+    data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
+
+    data['date1'] = datetime.date.fromtimestamp(mktime(time.strptime(data['date1'],"%Y-%m-%d %H:%M:%S")))
+    data['date2'] = datetime.date.fromtimestamp(mktime(time.strptime(data['date2'],"%Y-%m-%d %H:%M:%S")))
+    data['interval'] = (data['date2'] - data['date1']).days
+    data['date1'] = re.sub('T.*$','',data['date1'].isoformat())
+    data['date2'] = re.sub('T.*$','',data['date2'].isoformat())
+    data['glimsid'] = glimsid
+
+    #STRINGS FOR INSERT SQL STATEMENT
+    insert = ''
+    values = ''
+    ss = ''          
+
+    #LOOPING THROUGH EACH FIELD OF DATA AND ADDING TO THE INSERT AND VALUE STRINGS
+    for (i,key) in enumerate(data.keys()):
+            insert = insert + ', ' + key
+            ss = ss+ '%s, '
+            
+            if type(data[key]) == np.ndarray:
+                s = str(data[key])
+                s = re.sub('\[\'','{',s)
+                s = re.sub('\'\]','}',s)
+                s = re.sub("'\n? \n?'",", ",s)
+                s = re.sub("\n","",s)
+                values = values + ', ' + s
+            elif type(data[key]) == str:
+                if re.search('\d{4}\-\d{2}\-\d{2}',data[key]): data[key] = "'"+data[key]+"'" 
+                if key == 'glimsid': 
+                    data[key] = "'"+data[key]+"'" # Kilroy
+                values = values + ', ' + data[key]
+            else:values = values + ', ' + str(data[key])
+            
+                
+    #STRING FORMATTING FOR SQL
+    insert = re.sub('^, ', '', insert)
+    values = re.sub('^, ', '', values)
+    values = re.sub('\{', "'{", values)
+    values = re.sub('\}', "}'", values)
+    ss = re.sub(', $', '', ss)
+
+    sql = "INSERT INTO " + tableName + " ("+insert+") VALUES (" + values + ");" # Note: no quotes
+    return sql        
+
+
+
 def ReadLambFile(lambfile,as_dict = None,as_string = None):
 
     f = open(lambfile)
     
-    f.readline()#header trashed
+    f.readline()# header trashed
     
-    #reading glacierwide data on line 1
+    # reading glacierwide data on line 1
     (year1,jday1,year2,jday2,volmodel,vol25diff,vol75diff,balmodel,bal25diff,bal75diff) = [float(field) for field in f.readline().split()]
     
-    #converting to datetime objects
-    date1 = dtm.datetime(int(year1), 1, 1) + dtm.timedelta(int(jday1) - 1)
-    date2 = dtm.datetime(int(year2), 1, 1) + dtm.timedelta(int(jday2) - 1)
+    # converting to datetime objects
+    date1 = datetime.datetime(int(year1), 1, 1) + datetime.timedelta(int(jday1) - 1)
+    date2 = datetime.datetime(int(year2), 1, 1) + datetime.timedelta(int(jday2) - 1)
     
-    #vertically binned data - READING
-    e=N.array([])
-    dz=N.array([])
-    dz25=N.array([])
-    dz75=N.array([])
-    aad=N.array([])
-    masschange=N.array([])
-    massbal=N.array([])
-    numdata=N.array([])
+    # vertically binned data - READING
+    e=np.array([])
+    dz=np.array([])
+    dz25=np.array([])
+    dz75=np.array([])
+    aad=np.array([])
+    masschange=np.array([])
+    massbal=np.array([])
+    numdata=np.array([])
     f.readline()  #second header trashed
     for line in f:
         (e_add,dz_add,dz25_add,dz75_add,aad_add,masschange_add,massbal_add,numdata_add) = [float(field) for field in line.split()]
-        e = N.append(e,e_add)
-        dz = N.append(dz,dz_add)
-        dz25 = N.append(dz25,dz25_add)
-        dz75 = N.append(dz75,dz75_add)
-        aad = N.append(aad,aad_add)
-        masschange = N.append(masschange,masschange_add)
-        massbal = N.append(massbal,massbal_add)
-        numdata = N.append(numdata,numdata_add)
+        e = np.append(e,e_add)
+        dz = np.append(dz,dz_add)
+        dz25 = np.append(dz25,dz25_add)
+        dz75 = np.append(dz75,dz75_add)
+        aad = np.append(aad,aad_add)
+        masschange = np.append(masschange,masschange_add)
+        massbal = np.append(massbal,massbal_add)
+        numdata = np.append(numdata,numdata_add)
     
-    e = e.astype(int)
-    e += (e[2]-e[1])/2    # DEALING WITH THE FACT THAT LAMB BINNING LABLES THE BOTTOM OF THE BIN AND WE WANT THE CENTER
+    e[2] = e[2].astype(int)
+    e[1] = e[1].astype(int)
+    # DEALING WITH THE FACT THAT LAMB BINNING LABLES THE BOTTOM OF THE BIN AND WE WANT THE CENTER
+    e += (e[2]-e[1])/2    
     numdata = numdata.astype(int)   
     
     #GETTING GLACIER NAME FROM FILENAME
@@ -97,57 +190,3 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         dic['glimsid'] = glimsid
     return dic
 
-
-###############################################################################################
-## lamb_sql_generator
-##
-## This generates the SQL necessary to INSERT new lines of LAMB data to the database.
-###############################################################################################
-
-
-def lamb_sql_generator(lambfile,glimsid,tableName):
-    
-    #READING LAMBFILE INTO DICTIONARY    
-    data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
-   
-    data['date1'] = datetime.fromtimestamp(mktime(time.strptime(data['date1'],"%Y-%m-%d %H:%M:%S")))
-    data['date2'] = datetime.fromtimestamp(mktime(time.strptime(data['date2'],"%Y-%m-%d %H:%M:%S")))
-    data['interval'] = (data['date2'] - data['date1']).days
-    data['date1'] = re.sub('T.*$','',data['date1'].isoformat())
-    data['date2'] = re.sub('T.*$','',data['date2'].isoformat())
-    data['glimsid'] = glimsid
-    
-    #STRINGS FOR INSERT SQL STATEMENT
-    insert = ''
-    values = ''
-    ss = ''          
-    
-    #LOOPING THROUGH EACH FIELD OF DATA AND ADDING TO THE INSERT AND VALUE STRINGS
-    for (i,key) in enumerate(data.keys()):
-            insert = insert + ', ' + key
-            ss = ss+ '%s, '
-            
-            if type(data[key]) == N.ndarray:
-                s = str(data[key])
-                s = re.sub('\[\'','{',s)
-                s = re.sub('\'\]','}',s)
-                s = re.sub("'\n? \n?'",", ",s)
-                s = re.sub("\n","",s)
-                values = values + ', ' + s
-            elif type(data[key]) == str:
-                if re.search('\d{4}\-\d{2}\-\d{2}',data[key]): data[key] = "'"+data[key]+"'" 
-                if key == 'glimsid': 
-                    data[key] = "'"+data[key]+"'" # Kilroy
-                values = values + ', ' + data[key]
-            else:values = values + ', ' + str(data[key])
-            
-                
-    #STRING FORMATTING FOR SQL
-    insert = re.sub('^, ', '', insert)
-    values = re.sub('^, ', '', values)
-    values = re.sub('\{', "'{", values)
-    values = re.sub('\}', "}'", values)
-    ss = re.sub(', $', '', ss)
-    
-    sql = "INSERT INTO " + tableName + " ("+insert+") VALUES (" + values + ");" # Note: no quotes
-    return sql        

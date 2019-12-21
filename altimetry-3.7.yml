@@ -14,3 +14,5 @@ dependencies:
 - jupyterlab
 - psycopg2
 - pyyaml
+- paramiko
+- pandas
