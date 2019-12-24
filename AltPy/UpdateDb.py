@@ -1,32 +1,34 @@
-import re
-import time
-from time import mktime
-import datetime
-import numpy as np
 import os
 import sys
+import re
 
 sys.path.append(re.sub('[/][^/]+$','',os.path.dirname(__file__)))
 
-def get_ftp_data(connectionString, glacierNames, tempDirectory):
+def get_ftp_data(connectionString_ftp, connectionString_db, glacierNames, tempDirectory):
     '''
     Instantiaties a connection to a remote FTP site to acquire the raw altimetry data
 
     Parameters
     ----------
-    connectionString: a list of key value pairs containing username, password, hostname
+    connectionString_ftp: a list of key value pairs containing username, password, hostname
                     needed to connect to the ftp site
+    connectionString_db: a list of key value pairs containing username, password, hostname, port
+                    needed to connect to the postgres database
     glacierNames: a pandas dataframe of glacier names that you want to acquire
                 name: (string) Note, use the "first name" only, e.g. 
                             "Tsina" not "Tsina Glacier".
                 glimsid: (string) the Global Land Ice Measurements from Space ID 
     tempDirectory: a temporary location to store the raw lamb data files (mmm...raw lamb)
 
-        Returns: a secure ftp (sftp) object
+    Actions: updates the AWS database with records imported from AUF
+
+    Returns: indication of whether the upload was a success?
+    
     '''
     import paramiko
-
-    cs = connectionString
+    import AltPy.Altimetry as alt
+    
+    cs = connectionString_ftp
 
     paramiko.util.log_to_file("paramiko.log")
 
@@ -41,24 +43,32 @@ def get_ftp_data(connectionString, glacierNames, tempDirectory):
     # Go!    
     sftp = paramiko.SFTPClient.from_transport(transport)
 
+    try:
+        engine,cursor = alt.ConnectDb(connectionString_db)
+    except:
+        return 'can not connect to the database'
+
     for glacierName in glacierNames['name']:
-        print(glacierName)
         sftp.chdir('/home/laser/analysis/' + glacierName + '/results/')
         for fileName in sftp.listdir():
             if fileName.endswith(".output.txt"):
                 sftp.get(fileName, tempDirectory + fileName)
                 # I guess previously we were looking these up in the ice2oceans db?
                 #glimsid = (str(lambList.loc[lambList["name"] == glacierName]["glimsid"].values[0])) 
-                glimsid = glacierNames[glacierNames['name']==glacierName]['glimsid']
+                glimsid = glacierNames[glacierNames['name']==glacierName]['glimsid'].values[0]
                 sql = lamb_sql_generator(tempDirectory + fileName, glimsid, 'lamb')
-                print(sql)
-                #engine.execute(sql)
-
+                cursor.execute(sql)    
+    return 'data successfully uploaded'
 
 def lamb_sql_generator(lambfile,glimsid,tableName):
     '''
     This generates the SQL necessary to INSERT new lines of LAMB data to the database.
     '''
+
+    import numpy as np
+    import time
+    from time import mktime
+    import datetime
 
     #READING LAMBFILE INTO DICTIONARY    
     data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
@@ -106,9 +116,13 @@ def lamb_sql_generator(lambfile,glimsid,tableName):
     return sql        
 
 
-
 def ReadLambFile(lambfile,as_dict = None,as_string = None):
 
+    import datetime
+    import numpy as np
+    import re
+    import os
+    
     f = open(lambfile)
     
     f.readline()# header trashed
@@ -132,7 +146,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
     f.readline()  #second header trashed
     for line in f:
         (e_add,dz_add,dz25_add,dz75_add,aad_add,masschange_add,massbal_add,numdata_add) = [float(field) for field in line.split()]
-        e = np.append(e,e_add)
+        e = np.append(e,int(e_add))
         dz = np.append(dz,dz_add)
         dz25 = np.append(dz25,dz25_add)
         dz75 = np.append(dz75,dz75_add)
@@ -140,7 +154,6 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         masschange = np.append(masschange,masschange_add)
         massbal = np.append(massbal,massbal_add)
         numdata = np.append(numdata,numdata_add)
-    
     e[2] = e[2].astype(int)
     e[1] = e[1].astype(int)
     # DEALING WITH THE FACT THAT LAMB BINNING LABLES THE BOTTOM OF THE BIN AND WE WANT THE CENTER
@@ -159,7 +172,7 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
         balmodel = str(balmodel)
         bal25diff = str(bal25diff)
         bal75diff = str(bal75diff)
-        e = e.astype(str)
+        e = e.astype(int).astype(str)
         dz = dz.astype(str)
         dz25 = dz25.astype(str)
         dz75 = dz75.astype(str)
