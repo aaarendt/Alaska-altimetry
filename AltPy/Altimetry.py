@@ -24,7 +24,7 @@ import sys
 from types import *
     
 
-def ConnectDb(ConnectionString, server=None, get_host=None, get_user=None, get_dbname=None):
+def ConnectDb(ConnectionString, get_host=None, get_user=None, get_dbname=None):
     """====================================================================================================
     Altimetry.Altimetry.ConnectDb
 
@@ -37,8 +37,7 @@ def ConnectDb(ConnectionString, server=None, get_host=None, get_user=None, get_d
                    
     connection,cursor = ConnectDb(**kwargs)
   
-    KEYWORD ARGUMENTS:
-        server            Set to True to request that data be returned by column instead of row.
+    KEYWORD ARGUMENTS:          
         get_host,
         get_user,
         get_dbname        If set to True, the function will alter modes and instead return the requested
@@ -47,8 +46,7 @@ def ConnectDb(ConnectionString, server=None, get_host=None, get_user=None, get_d
 
     ==================================================================================================== 
     """
-    if server == None:server='defaulthost'
-
+    
     cs = ConnectionString
 
     st = "dbname='%s' host='%s' user='%s' password='%s' port = '%s'" % (cs['SQL_DATABASE'],cs['SQL_HOSTNAME'],cs['SQL_USERNAME'],cs['SQL_PASSWORD'],cs['SQL_PORT'])
