@@ -25,30 +25,27 @@ from types import *
     
 
 def ConnectDb(ConnectionString, get_host=None, get_user=None, get_dbname=None):
-    """====================================================================================================
-    Altimetry.Altimetry.ConnectDb
-
-    ====================================================================================================
+    '''
     Purpose:
-        Connect to a postgres database.  
-    
-    Returns: 
-            If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the defaulthost' as declared in settings.py.  The user can specify a different server by updating settings.py with the proper information and then specifying the name of the proper dictionary object with the keyword server.
-                   
+        Connect to the PostgreSQL database.  
+         
     connection,cursor = ConnectDb(**kwargs)
   
-    KEYWORD ARGUMENTS:          
+    Parameters:          
+        ConnectionString: a dictionary of credentials containing user/passwords for database access. This is generated via a yaml loader by a user in the Jupyter Notebook.
+
         get_host,
         get_user,
         get_dbname        If set to True, the function will alter modes and instead return the requested
                           information for the server of interest (either the default server or the one specified).  
                           Only one of these 3 keywords can be set to True at one time.
 
-    ==================================================================================================== 
-    """
-    
-    cs = ConnectionString
+    Returns: 
+            If get_host,get_user, or get_dbname are NOT SET, ConnectDb will return a psycopg2 connection and cursor to the database as a list.  If 'server' is not specified ConnectDb will connect to the defaulthost' as declared in settings.py.  The user can specify a different server by updating settings.py with the proper information and then specifying the name of the proper dictionary object with the keyword server.
+          
+    '''
 
+    cs = ConnectionString
     st = "dbname='%s' host='%s' user='%s' password='%s' port = '%s'" % (cs['SQL_DATABASE'],cs['SQL_HOSTNAME'],cs['SQL_USERNAME'],cs['SQL_PASSWORD'],cs['SQL_PORT'])
 
     if get_host != None and get_user == None and get_dbname == None: return cs['SQL_HOSTNAME']
@@ -169,36 +166,27 @@ def skewtest_evan(a, axis=0):
         return Z, 2 * distributions.norm.sf(N.abs(Z))
 
 
-def GetSqlData(select,bycolumn=True):
-    """====================================================================================================
-        Altimetry.Altimetry.GetSqlData
+def GetSqlData(ConnectionString, select,bycolumn=True):
+    '''
+    Purpose:
+        Extract data from postgres database using sql query and return data organized by either row or column.  
 
-        Evan Burgess 2013-08-22
-        ====================================================================================================
-        Purpose:
-            Extract data from postgres database using sql query and return data organized by either row or column.  
-
-        Returns: 
-            If data is returned by row (default) the requested data will be stored as a list of dictionaries where each row in
-            the output table is stored as a dictionary where the keys are the column names.  If you set aliases in your sql
-            query, the key names will follow those aliases.  If you request bycolumn, each column in the output table is
-            accessed though a dictionary where the key is the column name.  Each column of data is stored in that
-            dictionary as a list or as a numpy array.  Special data formats are supported:        
-
-     If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the
-     outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the 
-     dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
+    Returns: 
+        If data is returned by row (default) the requested data will be stored as a list of dictionaries where each row in the output table is stored as a dictionary where the keys are the column names.  If you set aliases in your sql query, the key names will follow those aliases.  If you request bycolumn, each column in the output table is
+        accessed though a dictionary where the key is the column name.  Each column of data is stored in that dictionary as a list or as a numpy array.  Special data formats are supported:        
+        
+        If you request a MULTIPOLYGON geometry, the geometry will be extracted into a list of coordinates for the outer ring and another list of inner rings (which is another list of coordinates).  Data is stored in the  dictionary as keys 'inner' and 'outer'.  If there are no inner rings, None is returned.
                
-    GetSqlData(select,bycolumn = False):   
+        GetSqlData(ConnectionString,select,bycolumn = False):   
 
     ARGUMENTS:        
-        select              Any postgresql select statement as string including ';'  
+        ConnectionString: a dictionary of credentials containing user/passwords for database access. This is generated via a yaml loader by a user in the Jupyter Notebook
+        select: Any postgresql select statement as string including ';'  
     KEYWORD ARGUMENTS:
-        bycolumn            Set to True to request that data be returned by column instead of row.
-    ====================================================================================================        
-    """
+        bycolumn: Set to True to request that data be returned by column instead of row.      
+    '''
     #connect to database and execute sql and retrieve data
-    conn,cur = ConnectDb()
+    conn,cur = ConnectDb(ConnectionString)
     cur.execute(select)
     fields = [d.name for d in cur.description]
 
@@ -249,29 +237,11 @@ def GetSqlData(select,bycolumn=True):
 
 ##################################################################################################################  
 ##################################################################################################################    
-def GetLambData(removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None,\
-latest_date = None, userwhere = "",verbose = False,orderby=None,longest_interval=False,get_geom=False,\
-by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False,get_glimsid=False):
-    """====================================================================================================
-    Altimetry.Altimetry.GetLambData
-    Evan Burgess 2013-08-22
-    ====================================================================================================
+def GetLambData(ConnectionString,removerepeats=True, days_from_year = 30,interval_min = 0,interval_max = None ,earliest_date = None, latest_date = None, userwhere = "",verbose = False,orderby=None,longest_interval=False,get_geom=False, by_column=True,as_object=False,generalize=None,results=False,density=0.850, density_err= 0.06,acrossgl_err=0.0,get_hypsometry=False,get_glimsid=False):
+    '''
     Purpose:
-        This is the primary function to extract Laser Altimetry Mass Balance (LAMB) data from the database.  
-        The key point to understand is that this code does not calculate mass balance from the raw LiDAR point 
-        clouds that are also stored in ice2oceans postgres database. Instead, GetLambData queries a table called
-        lamb that contains the surface elevation profiles change rate profiles for each glacier over each 
-        possible interval.  Each profile was in this table was generated using a semi-manual step (discussed 
-        in Arendt et al., (2002) and Johnson et all. (2013)), where a user defines a bin size, a glacier 
-        polygon etc and then runs a matlab script called 'lamb' to generate a top-bottom profile of surface
-        elevation change rates.  This script also outputs the along profile IQR of the measured surface 
-        elevation change and the mass balance integrated across the user defined glacier polygon.  All of this
-        data is included in the lamb table and output by GetLambData.  The only part of 'lamb' used by Larsen 
-        et al., is the elevation change rate profile and the IQR for each glacier. This script will retrieve 
-        Lambdata for any group of glaciers and survey intervals.  It contains kwargs for you filter what
-        intervals you would like.  It will also return the glacier polygon from the RGI (the one used in
-        Larsen et al., [2015] not Johnson et al. [2013]), the glacier hypsometry, and the Larsen et al., 2015 
-        mass balance estimate.
+        This is the primary function to extract Laser Altimetry Mass Balance (LAMB) data from the database. The key point to understand is that this code does not calculate mass balance from the raw LiDAR point clouds that are also stored in ice2oceans postgres database. Instead, GetLambData queries a table called lamb that contains the surface elevation profiles change rate profiles for each glacier over each possible interval.  Each profile was in this table was generated using a semi-manual step (discussed in Arendt et al., (2002) and Johnson et all. (2013)), where a user defines a bin size, a glacier polygon etc and then runs a matlab script called 'lamb' to generate a top-bottom profile of surface elevation change rates.  This script also outputs the along profile IQR of the measured surface elevation change and the mass balance integrated across the user defined glacier polygon.  All of this data is included in the lamb table and output by GetLambData.  The only part of 'lamb' used by Larsen  et al., is the elevation change rate profile and the IQR for each glacier. This script will retrieve Lambdata for any group of glaciers and survey intervals.  It contains kwargs for you filter what intervals you would like.  It will also return the glacier polygon from the RGI (the one used in
+        Larsen et al., [2015] not Johnson et al. [2013]), the glacier hypsometry, and the Larsen et al., 2015 mass balance estimate.
     
     Returns: 
         A dictionary or a lamb object with all attributes available in lamb as well as glacier parameters
@@ -279,7 +249,9 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
 
     lamb_data = GetLambData(*args,**kwargs)    
 
-    KEYWORD ARGUMENTS:        
+    KEYWORD ARGUMENTS:       
+        ConnectionString: a dictionary of credentials containing user/passwords for database access. This is generated via a yaml loader by a user in the Jupyter Notebook. 
+        
         removerepeats       Set to True to  select only the shortest/non-overlapping intervals for each glacier.  
                             Set to false to include all data.  Default Value=True
                         
@@ -325,8 +297,8 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
                             to the output: bins,normbins,and binned_area.  See ergibins for explanations of these
                             fields.
     
-    ====================================================================================================        
-    """
+    '''
+
     #LIST OF FIELDS TO QUERY
     fields = [
     'lamb.lambid',
@@ -432,7 +404,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
     #MAKING THE SELECT QUERY
     select = "SELECT %s %s %s %s %s;" % (distinct,",".join(fields),' '.join(tables),' AND '.join(wheres),",".join(orderby_init))
     if verbose:print(select)
-    s = GetSqlData(select,bycolumn=False)
+    s = GetSqlData(ConnectionString,select,bycolumn=False)
 
     #IF NO DATA WAS RETURNED, END AND RETURNED NONE
     if type(s)==NoneType: return None
@@ -471,10 +443,10 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         if get_hypsometry:
             for i in s:
                 # AAA
-                # hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
+                # hyps = GetSqlData(ConnectionString,"SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % i['ergiid'])
                 # AAA
                 print("glimsid = " + str(i['glimsid']))
-                hyps = GetSqlData("SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid ='%s' ORDER BY normbins" % i['glimsid'])
+                hyps = GetSqlData(ConnectionString,"SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid ='%s' ORDER BY normbins" % i['glimsid'])
                 print(hyps)
                 for key in ('binned_area','bins','normbins'):i[key]=hyps[key]
 
@@ -483,7 +455,7 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
         if not re.search("^\s*ORDER BY",orderby[0], re.IGNORECASE): orderby[0]="ORDER BY %s" % orderby[0]
         print ("NOTE: Choosing orderby lengthens the querytime of GetLambData")
         lambids = [str(i['lambid']) for i in s]
-        s = GetSqlData("SELECT %s %s WHERE lamb.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby)), bycolumn=by_column)
+        s = GetSqlData(ConnectionString,"SELECT %s %s WHERE lamb.lambid IN ('%s') %s;" % (",".join(fields),' '.join(tables),"','".join(lambids),",".join(orderby)), bycolumn=by_column)
         
         if get_hypsometry:
             s['binned_area'] = []
@@ -491,9 +463,9 @@ by_column=True,as_object=False,generalize=None,results=False,density=0.850, dens
             s['normbins'] = []
             for ergiidt in s['glimsid']:
                 # AAA
-                 #hyps = GetSqlData("SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
+                 #hyps = GetSqlData(ConnectionString,"SELECT area::real as binned_area,bins::real,normbins::real FROM ergibins WHERE ergiid='%s' ORDER BY normbins" % ergiidt)
                 # AAA 
-                hyps = GetSqlData("SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid='%s' ORDER BY normbins" % ergiidt)
+                hyps = GetSqlData(ConnectionString,"SELECT area::real as binned_area, bins::real, normbins::real FROM ergibins WHERE glimsid='%s' ORDER BY normbins" % ergiidt)
                 s['binned_area'].append(hyps['binned_area'])
                 s['bins'].append(hyps['bins'])
                 s['normbins'].append(hyps['normbins'])
@@ -889,7 +861,7 @@ class LambObject:
         
         for k,gid in enumerate(self.gid):
             print (k)
-            xpts=GetSqlData("SELECT z1,geog from xpts WHERE lambid=%s" % gid)
+            xpts=GetSqlData(ConnectionString,"SELECT z1,geog from xpts WHERE lambid=%s" % gid)
             
             print ('len xpts',len(xpts['z1']))
             
@@ -1278,11 +1250,8 @@ def mad (inpu,axis=None,normalized=False):
         if normalized: return 1.4826*out
         else: return out
        
-def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_tbls=False, export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
-    """====================================================================================================
-    Altimetry.Altimetry.extrapolate
-    Evan Burgess 2013-08-22
-    ====================================================================================================
+def extrapolate(ConnectionString, user,groups,selections,insert_surveyed_data=None, keep_postgres_tbls=False, export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0):
+    '''
     Purpose:
         This function extrapolates to unsurveyed glaciers and returns estimates of mass balance for all glaciers,
         including surveyed glaciers in the ERGI. This function is intended to work with partition dataset where
@@ -1296,6 +1265,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
         export_shp=None,density=0.850, density_err= 0.06,acrossgl_err=0.0)
     
     ARGUMENTS:
+        ConnectionString: a dictionary of credentials containing user/passwords for database access. This is generated via a yaml loader by a user in the Jupyter Notebook.
         user            Input a string that states the user name.  This funtion will output a table with the name 
                         alt_result_[user]X where X is 1 or if the user has a table already this script will not over-
                         write so the number will be increased incrementally.  This will prevent different users from
@@ -1316,6 +1286,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
                     
                     
     KEYWORD ARGUMENTS:
+    
         insert_surveyed_data    Set to a lamb object that includes glaciers, for which, you would like to insert the
                                 actual surveyed glacier profile into the regional estimate.  If this keyword is left 
                                 blank, we use the extrapolation curves are applied to all glaciers in the selections
@@ -1388,9 +1359,8 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
         including surgers.  Here, ther user has then inserted the surveyed data so surveyed glacier mass 
         balance is included on an individual glacier basis.  Lastly here we drop the output_table, 
         please do this as the output table is several Gb. 
-         
-    ====================================================================================================        
-    """
+               
+    '''
 
     #ENSURING STATS HAVE BEEN RUN ON GROUP FIRST
     for grp in groups:
@@ -1467,7 +1437,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     
     #UPDATING TABLE WITH UNSURVEYED GLACIER DATA
     print ("Committing data for unsurveyed glaciers...")
-    conn,cur = ConnectDb()
+    conn,cur = ConnectDb(ConnectionString)
     #print(buffer2.read())
     cur.execute(buffer2.read())
     conn.commit()
@@ -1505,7 +1475,7 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     
     #UPDATING TABLE WITH SURVEYED GLACIER DATA
     print ("Commiting data for surveyed glaciers...")
-    conn,cur = ConnectDb()
+    conn,cur = ConnectDb(ConnectionString)
     cur.execute(buffer.read())
     conn.commit()
     cur.close()
@@ -1522,10 +1492,10 @@ def extrapolate(user,groups,selections,insert_surveyed_data=None, keep_postgres_
     start_time = time.time()
     out = {}
     #GETTING STATS TO OUTPUT
-    out['bysurveyed'] =    GetSqlData("SELECT surveyed,SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
-    out['bytype_survey'] = GetSqlData("SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
-    out['bytype'] =        GetSqlData("SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
-    out['all'] =           GetSqlData("SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bysurveyed'] =    GetSqlData(ConnectionString,"SELECT surveyed,SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY surveyed;" %         (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bytype_survey'] = GetSqlData(ConnectionString,"SELECT gltype, surveyed, SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype,surveyed;" % (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['bytype'] =        GetSqlData(ConnectionString,"SELECT gltype,           SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s GROUP BY gltype;" %          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
+    out['all'] =           GetSqlData(ConnectionString,"SELECT                   SUM(area)/1e6::real as area,SUM(mean*area)/1e9*%5.3f::real as totalGt,SUM(mean*area)/SUM(area)*%5.3f::real as totalkgm2,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/1e9*%5.3f)^2 + (%5.3f)^2)^0.5::real as errGt,(((((SUM(error*area)/SUM(mean*area))^2+(%5.3f/%5.3f)^2)^0.5)*SUM(mean*area)/SUM(area)*%5.3f)^2+(%5.3f)^2)^0.5::real as errkgm2 FROM %s;" %                          (density,density,density_err,density,density, acrossgl_err,density_err,density,density,acrossgl_err,tablename))
         
     if not keep_postgres_tbls:remove_extrap_tables(user,tables=tablename)
 
@@ -1640,11 +1610,9 @@ def full_plot_extrapolation_curves(data,samples_lim=None,err_lim=None,color=None
  
     return fig
     
-def create_extrapolation_table(user=None,schema=None,table=None):
-    """====================================================================================================
-    Altimetry.Altimetry.create_extrapolation_table
-    Evan Burgess 2015-04-22
-    ====================================================================================================
+def create_extrapolation_table(ConnectionString, user=None,schema=None,table=None):
+ 
+    '''
     Purpose:
         This function creates an extrapolation table and controls the names of the tables such that they will 
         not be confused between users. The point here is that altimetryextrapolation table is reserved for 
@@ -1657,22 +1625,23 @@ def create_extrapolation_table(user=None,schema=None,table=None):
         The new created table name as a string.
          
     ARGUMENTS:
+        ConnectionString: a dictionary of credentials containing user/passwords for database access. This is generated via a yaml loader by a user in the Jupyter Notebook.
         user            A username to be inserted into the table  (REQUIRED)
                     
 
         schema          Set the schema. (DEFAULT='public')
         
         table           The user can force another table name here but this tablename will not be 
-                        recognized by remove_extrap_tables.
-    ====================================================================================================        
-    """
+                        recognized by remove_extrap_tables.     
+    '''
+
     if user==None:raise "ERROR: Must Specify User"
     
     if schema==None: schema = 'public'
     if table==None:
         
         #LOOKING FOR TABLES THIS USER HAS CREATED.  IF THE USER HAS MORE THAN ONE TABLE OPEN THEN NUMBERS WILL INCREASE SEQUENTIALLY  THIS RETURNS THE NEXT TABLE NUMBER AVAILABLE
-        n = GetSqlData("SELECT substring(table_name FROM 'alt_result_{user}(\d+)') FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
+        n = GetSqlData(ConnectionString,"SELECT substring(table_name FROM 'alt_result_{user}(\d+)') FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
         if n==None:table = "alt_result_{user}1".format(user=user)
         else: 
             number = N.array(n['substring']).astype(int).max()+1
@@ -1759,7 +1728,7 @@ COMMENT ON COLUMN {table}.region IS 'Region defined by Larsen et al. 2015';
     buffer.write(sql)
     buffer.seek(0)
    
-    conn,cur = ConnectDb()
+    conn,cur = ConnectDb(ConnectionString)
     cur.execute(buffer.read())
     conn.commit()
     conn.set_isolation_level(0)
@@ -1792,7 +1761,7 @@ def remove_extrap_tables(user,tables=None,schemas=None):
     #LOOKING FOR TABLES BY THIS USER
     if type(tables)==NoneType:
         #print "SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user)
-        t = GetSqlData("SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
+        t = GetSqlData(ConnectionString,"SELECT table_schema, substring(table_name FROM '(alt_result_{user}\d+)') as t FROM information_schema.tables WHERE table_name SIMILAR TO 'alt_result_{user}\d+';".format(user=user))
         if type(t)==NoneType:
             print ("No tables by this user to delete.")
             return
@@ -1805,7 +1774,7 @@ def remove_extrap_tables(user,tables=None,schemas=None):
         else: 
             tables2=tables
             
-        schemas = GetSqlData("SELECT table_schema FROM information_schema.tables WHERE table_name IN ('{tables}');".format(tables=tables2))['table_schema']
+        schemas = GetSqlData(ConnectionString,"SELECT table_schema FROM information_schema.tables WHERE table_name IN ('{tables}');".format(tables=tables2))['table_schema']
 
     sql = """ALTER TABLE ONLY {schema}.{table} DROP CONSTRAINT IF EXISTS {table}fkergi;
 DROP INDEX IF EXISTS {schema}.{table}geom;
@@ -1829,7 +1798,7 @@ DROP TABLE {schema}.{table};
     buffer.write(outsql)
     buffer.seek(0)
    
-    conn,cur = ConnectDb()
+    conn,cur = ConnectDb(ConnectionString)
     cur.execute(buffer.read())
     conn.commit()
     cur.close()
@@ -1858,7 +1827,7 @@ def destable(table):
         out.append(a[last:])
         return "\n                |                 |  ".join(out)
         
-    oid=GetSqlData("""SELECT c.oid
+    oid=GetSqlData(ConnectionString,"""SELECT c.oid
     FROM pg_catalog.pg_class c
         LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relname ~ '^(%s)$'
@@ -1866,14 +1835,14 @@ def destable(table):
     """ % table)['oid'][0]
     
     
-    des = GetSqlData("""SELECT a.attname,
+    des = GetSqlData(ConnectionString,"""SELECT a.attname,
     pg_catalog.format_type(a.atttypid, a.atttypmod),
     pg_catalog.col_description(a.attrelid, a.attnum)
     FROM pg_catalog.pg_attribute a
     WHERE a.attrelid = '%s' AND a.attnum > 0 AND NOT a.attisdropped
     ORDER BY a.attnum;""" % oid)
     
-    tdes = GetSqlData("""SELECT description FROM pg_description JOIN pg_class ON pg_description.objoid = pg_class.oid
+    tdes = GetSqlData(ConnectionString,"""SELECT description FROM pg_description JOIN pg_class ON pg_description.objoid = pg_class.oid
     WHERE relname = '%s' AND objsubid=0;""" % table)['description'][0]
     
     
