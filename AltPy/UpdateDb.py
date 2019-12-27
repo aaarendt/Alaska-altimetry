@@ -20,9 +20,9 @@ def get_ftp_data(connectionString_ftp, connectionString_db, glacierNames, tempDi
                 glimsid: (string) the Global Land Ice Measurements from Space ID 
     tempDirectory: a temporary location to store the raw lamb data files (mmm...raw lamb)
 
-    Actions: updates the AWS database with records imported from AUF
+    Actions: updates the AWS database with records imported from UAF
 
-    Returns: indication of whether the upload was a success?
+    Returns: indication of whether the upload was a success
     
     '''
     import paramiko
@@ -57,12 +57,26 @@ def get_ftp_data(connectionString_ftp, connectionString_db, glacierNames, tempDi
                 #glimsid = (str(lambList.loc[lambList["name"] == glacierName]["glimsid"].values[0])) 
                 glimsid = glacierNames[glacierNames['name']==glacierName]['glimsid'].values[0]
                 sql = lamb_sql_generator(tempDirectory + fileName, glimsid, 'lamb')
-                cursor.execute(sql)    
+                cursor.execute(sql)  
+    engine.commit() 
+    cursor.close()
     return 'data successfully uploaded'
+ 
 
 def lamb_sql_generator(lambfile,glimsid,tableName):
     '''
     This generates the SQL necessary to INSERT new lines of LAMB data to the database.
+
+    Parameters
+    ----------
+    lambfile: (string) the full name of the text file stored on the UAF ftp server to be ingested
+    glimsid: (string) the Global Land Ice Measurements from Space ID 
+    tableName: (string) the name of the table in the database into which the data will be uploaded
+    
+    Returns: a SQL string to be passed to the database for data ingest
+
+    Notes: this is a low-level way to generate SQL strings but it works. Future upgrades should consider using pandas/geopandas or SQLAlchemy
+
     '''
 
     import numpy as np
@@ -116,7 +130,19 @@ def lamb_sql_generator(lambfile,glimsid,tableName):
     return sql        
 
 
-def ReadLambFile(lambfile,as_dict = None,as_string = None):
+def ReadLambFile(lambfile):
+
+    '''
+    This function has all the low-level code needed to import the UAF altimetry raw data files
+
+    Parameters
+    ----------
+    lambfile: (string) the full name of the text file stored on the UAF ftp server to be ingested
+    
+    Returns: a dictionary with all the data formatted for ingest into the database
+
+
+    '''
 
     import datetime
     import numpy as np
@@ -163,43 +189,42 @@ def ReadLambFile(lambfile,as_dict = None,as_string = None):
     #GETTING GLACIER NAME FROM FILENAME
     name = re.findall('(^[^\.]+)\.',os.path.basename(lambfile))[0]
     
-    if as_string == 1:
-        date1 = str(date1)
-        date2 = str(date2)
-        volmodel = str(volmodel)
-        vol25diff = str(vol25diff)
-        vol75diff = str(vol75diff)
-        balmodel = str(balmodel)
-        bal25diff = str(bal25diff)
-        bal75diff = str(bal75diff)
-        e = e.astype(int).astype(str)
-        dz = dz.astype(str)
-        dz25 = dz25.astype(str)
-        dz75 = dz75.astype(str)
-        aad = aad.astype(str)
-        masschange = masschange.astype(str)
-        massbal = massbal.astype(str)
-        numdata = numdata.astype(str) 
-        glimsid = str(0)
-        
-    if as_dict == 1:
-        dic={} 
-        dic['date1'] = date1
-        dic['date2'] = date2
-        dic['volmodel'] = volmodel
-        dic['vol25diff'] = vol25diff
-        dic['vol75diff'] = vol75diff
-        dic['balmodel'] = balmodel
-        dic['bal25diff'] = bal25diff
-        dic['bal75diff'] = bal75diff
-        dic['e'] = e
-        dic['dz'] = dz
-        dic['dz25'] = dz25
-        dic['dz75'] = dz75
-        dic['aad'] = aad
-        dic['masschange'] = masschange
-        dic['massbal'] = massbal
-        dic['numdata'] = numdata
-        dic['glimsid'] = glimsid
+    date1 = str(date1)
+    date2 = str(date2)
+    volmodel = str(volmodel)
+    vol25diff = str(vol25diff)
+    vol75diff = str(vol75diff)
+    balmodel = str(balmodel)
+    bal25diff = str(bal25diff)
+    bal75diff = str(bal75diff)
+    e = e.astype(int).astype(str)
+    dz = dz.astype(str)
+    dz25 = dz25.astype(str)
+    dz75 = dz75.astype(str)
+    aad = aad.astype(str)
+    masschange = masschange.astype(str)
+    massbal = massbal.astype(str)
+    numdata = numdata.astype(str) 
+    glimsid = str(0)
+
+    dic={} 
+    dic['date1'] = date1
+    dic['date2'] = date2
+    dic['volmodel'] = volmodel
+    dic['vol25diff'] = vol25diff
+    dic['vol75diff'] = vol75diff
+    dic['balmodel'] = balmodel
+    dic['bal25diff'] = bal25diff
+    dic['bal75diff'] = bal75diff
+    dic['e'] = e
+    dic['dz'] = dz
+    dic['dz25'] = dz25
+    dic['dz75'] = dz75
+    dic['aad'] = aad
+    dic['masschange'] = masschange
+    dic['massbal'] = massbal
+    dic['numdata'] = numdata
+    dic['glimsid'] = glimsid
+    
     return dic
 
