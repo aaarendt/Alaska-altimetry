@@ -85,7 +85,7 @@ def lamb_sql_generator(lambfile,glimsid,tableName):
     import datetime
 
     #READING LAMBFILE INTO DICTIONARY    
-    data = ReadLambFile(lambfile, as_string = 1, as_dict = 1)
+    data = ReadLambFile(lambfile)
 
     data['date1'] = datetime.date.fromtimestamp(mktime(time.strptime(data['date1'],"%Y-%m-%d %H:%M:%S")))
     data['date2'] = datetime.date.fromtimestamp(mktime(time.strptime(data['date2'],"%Y-%m-%d %H:%M:%S")))
