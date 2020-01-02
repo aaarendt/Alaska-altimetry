@@ -1,11 +1,10 @@
 ﻿-- Materialized View: ergi_mat_view_new
 
-DROP MATERIALIZED VIEW ergi_mat_view;
-
 -- new method for making the ergi view table
 -- no need to use the points files to identify the various types
 -- now this is determined directly from the four character RGI table codes
 
+DROP MATERIALIZED VIEW ergi_mat_view;
 CREATE MATERIALIZED VIEW ergi_mat_view AS 
  SELECT DISTINCT ON (ergi.glimsid) ergi.glimsid,
     ergi.ergiid,
@@ -41,6 +40,6 @@ CREATE MATERIALIZED VIEW ergi_mat_view AS
 WITH DATA;
 
 ALTER TABLE ergi_mat_view
-  OWNER TO arendta;
-GRANT ALL ON TABLE ergi_mat_view TO arendta;
-GRANT ALL ON TABLE ergi_mat_view TO reader;
+  OWNER TO admin;
+GRANT ALL ON TABLE ergi_mat_view TO admin;
+GRANT ALL ON TABLE ergi_mat_view TO altimetryuser;
