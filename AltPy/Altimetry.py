@@ -407,7 +407,7 @@ def GetLambData(ConnectionString,removerepeats=True, days_from_year = 30,interva
     s = GetSqlData(ConnectionString,select,bycolumn=False)
 
     #IF NO DATA WAS RETURNED, END AND RETURNED NONE
-    if type(s)==NoneType: return None
+    if s is None: return None
 
     #REMOVING REPEATS IF THAT OPTION WAS SELECTED
     deletelist = []
