@@ -1,15 +1,23 @@
-﻿CREATE TABLE ergi AS
--- code to generate polygons from RGI "enhanced" for altimetry work (ergi)
+﻿-- code to generate polygons from RGI "enhanced" for altimetry work (ergi)
+-- this should only need to be run once when setting up database files for the first time
+
 -- two types of cases are covered: merging multiple polygons, or reassigning types 
 
 -- for polygon merging: first give all polygons to be merged the same rgiid, then
 -- GROUP BY rgiid and apply ST_Union
  
--- aaarendt 20160103
+-- The first set of control (CASE) statements reassign glacier types because some glaciers need to be considered different types for altimetry purposes (e.g. "paleo-tidewater") 
 
+-- The second set of control statements merge RGI glaciers for altimetry purposes
+
+-- Anthony Arendt 20160103
+
+-- This code works only on RGI v4.0. Latest version 6.0 has different type assignments.
+
+-- Arendt 20200102
+
+CREATE TABLE ergi AS
 SELECT merged.glimsid AS glimsid, merged.max AS max, merged.min AS min, merged.area AS area, merged.geom AS albersgeom, modern.name, 
--- These control statements reassign glacier types
--- some glaciers need to be considered different types for altimetry purposes (e.g. "paleo-tidewater") 
 CASE
    WHEN merged.glimsid = 'G211470E60937N' THEN '9199' -- Harriman
    WHEN merged.glimsid = 'G212133E61251N' THEN '9199' -- Bryn Mawr
@@ -30,7 +38,6 @@ JOIN
 (SELECT m1.newglimsid AS glimsid, sum(m1.area) AS area, max(m1.elev_max) as max, min(m1.elev_min) as min, ST_Union(m1.geom) as geom FROM
 (SELECT m.glimsid, m.area, m.geom, madd.elev_max, madd.elev_min,
   CASE 
-  -- These control statements merge RGI glaciers for altimetry purposes
      WHEN m.glimsid = 'G216935E60607N' THEN 'G217826E60615N' -- Tana
      WHEN m.glimsid = 'G216662E60771N' THEN 'G216711E60765N' -- Tana Lobe Bremner
      WHEN m.glimsid = 'G207356E60652N' THEN 'G207302E60702N' -- Double
@@ -43,15 +50,16 @@ JOIN
      WHEN m.glimsid = 'G227251E57936N' THEN 'G227097E57898N' -- Sawyer
      ELSE m.glimsid
   END 
-	
   AS newglimsid
   FROM modern AS m
   JOIN
   (SELECT elev_max, elev_min, glimsid FROM modernadditional) as madd
   ON madd.glimsid = m.glimsid) AS m1 GROUP BY m1.newglimsid) AS merged
   ON merged.glimsid = modern.glimsid;
-  
-  ALTER TABLE ergi ADD COLUMN ergiid SERIAL;
+
+-- Run this after the table above to assign a primary key to the new ergi table
+
+ALTER TABLE ergi ADD COLUMN ergiid SERIAL;
 UPDATE ergi SET ergiid = nextval(pg_get_serial_sequence('ergi','ergiid'));
 ALTER TABLE ergi ADD PRIMARY KEY(ergiid);
 
