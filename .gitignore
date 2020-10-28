@@ -13,3 +13,4 @@ settings.py
 altimetry.egg-info
 .env.yaml
 paramiko.log
+data/
